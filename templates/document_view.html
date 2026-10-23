@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% block title %}{{ document.type_label }} {{ document.number }} - Stellwerk{% endblock %}
+
+{% block content %}
+{% set status_colors = {
+    'draft': 'bg-gray-100 text-gray-600',
+    'sent': 'bg-blue-100 text-blue-700',
+    'accepted': 'bg-emerald-100 text-emerald-700',
+    'converted': 'bg-petrol-100 text-petrol-700',
+    'paid': 'bg-emerald-100 text-emerald-700',
+    'overdue': 'bg-red-100 text-red-700',
+    'rejected': 'bg-orange-100 text-orange-700',
+    'expired': 'bg-orange-100 text-orange-700',
+    'cancelled': 'bg-orange-100 text-orange-700',
+} %}
+
+{% macro euro(value) %}{{ '{:,.2f}'.format(value|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% endmacro %}
+
+
+<div class="mb-6 flex justify-between items-center fade-up">
+    <a href="{{ url_for('documents', tab='invoices' if document.doc_type == 'invoice' else 'quotes') }}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 font-medium transition-colors group">
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        Dokumente
+    </a>
+    <div class="flex gap-2 flex-wrap justify-end">
+        {% if document.status == 'draft' %}
+        
+        <a href="{{ url_for('document_edit', id=document.id) }}"
+           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-800 text-sm font-medium shadow-sm shadow-indigo-600/25 transition-all duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+            Bearbeiten
+        </a>
+        
+        {% if document.contact.primary_email %}
+        <button onclick="sendDocumentEmail({{ document.id }})" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 text-sm font-medium shadow-sm shadow-blue-600/25 transition-all duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+            Per E-Mail senden{% if document.status == 'draft' %} & als gesendet markieren{% endif %}
+        </button>
+        {% endif %}
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline">
+            <input type="hidden" name="status" value="sent">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-blue-700 border border-blue-200/60 rounded-lg hover:bg-blue-50 hover:border-blue-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
+                Als gesendet markieren
+            </button>
+        </form>
+        
+        <form action="{{ url_for('document_delete', id=document.id) }}" method="POST" class="inline"
+              onsubmit="return confirm('{{ document.type_label }} {{ document.number }} wirklich löschen?')">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-red-600 border border-red-200/60 rounded-lg hover:bg-red-50 hover:border-red-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                Löschen
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status in ['sent', 'overdue'] and document.contact.primary_email %}
+        
+        <button onclick="sendDocumentEmail({{ document.id }})" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-blue-600 border border-blue-200/60 rounded-lg hover:bg-blue-50 hover:border-blue-300 text-sm font-medium transition-all duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+            Erneut senden
+        </button>
+        {% endif %}
+
+        {% if document.status == 'sent' and document.doc_type == 'quote' %}
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline">
+            <input type="hidden" name="status" value="accepted">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-800 text-sm font-medium shadow-sm shadow-emerald-600/25 transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                Angenommen
+            </button>
+        </form>
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline">
+            <input type="hidden" name="status" value="rejected">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-orange-700 border border-orange-200/60 rounded-lg hover:bg-orange-50 hover:border-orange-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                Abgelehnt
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status in ('accepted', 'converted') and document.doc_type == 'quote' %}
+        
+        <form action="{{ url_for('document_convert', id=document.id) }}" method="POST" class="inline">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-800 text-sm font-medium shadow-sm shadow-indigo-600/25 transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                {{ 'Weitere Rechnung erstellen' if document.status == 'converted' else 'In Rechnung umwandeln' }}
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status == 'sent' and document.doc_type == 'invoice' %}
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline">
+            <input type="hidden" name="status" value="paid">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-800 text-sm font-medium shadow-sm shadow-emerald-600/25 transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                Als bezahlt markieren
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status == 'overdue' and document.doc_type == 'invoice' %}
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline">
+            <input type="hidden" name="status" value="paid">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-800 text-sm font-medium shadow-sm shadow-emerald-600/25 transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                Als bezahlt markieren
+            </button>
+        </form>
+        
+        <form action="{{ url_for('document_dunning', id=document.id) }}" method="POST" class="inline">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-red-700 border border-red-200/60 rounded-lg hover:bg-red-50 hover:border-red-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                Mahnung erstellen
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status in ['sent', 'overdue', 'draft'] and document.status != 'cancelled' %}
+        
+        <form action="{{ url_for('document_status', id=document.id) }}" method="POST" class="inline"
+              onsubmit="return confirm('{{ document.type_label }} wirklich stornieren?')">
+            <input type="hidden" name="status" value="cancelled">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-gray-500 border border-gray-200/60 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                Stornieren
+            </button>
+        </form>
+        {% endif %}
+
+        {% if document.status != 'draft' %}
+        
+        <form action="{{ url_for('document_duplicate', id=document.id) }}" method="POST" class="inline">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-gray-600 border border-gray-200/60 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-sm font-medium transition-all duration-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>
+                Duplizieren
+            </button>
+        </form>
+        {% endif %}
+        
+        <a href="{{ url_for('document_preview', id=document.id) }}" target="_blank"
+           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-gray-600 border border-gray-200/60 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-sm font-medium transition-all duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Vorschau
+        </a>
+        
+        <a href="{{ url_for('document_pdf', id=document.id) }}"
+           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-gray-600 border border-gray-200/60 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-sm font-medium transition-all duration-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            PDF{% if document.status == 'draft' %} <span class="text-[10px] text-gray-400">(Entwurf)</span>{% endif %}
+        </a>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 fade-up delay-1">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">{{ document.type_label }} {{ document.number }}</h1>
+                <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold {{ status_colors.get(document.status, 'bg-gray-100 text-gray-600') }}">
+                    {{ document.status_label }}
+                </span>
+            </div>
+            <p class="text-gray-600 mt-1">{{ document.subject }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+        
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Kontakt</span>
+            <p class="mt-0.5">
+                <a href="{{ url_for('contact_view', id=document.contact_id) }}" class="text-petrol-600 hover:text-petrol-600 font-medium transition-colors">
+                    {{ document.contact.display_name }}
+                </a>
+            </p>
+        </div>
+        
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Datum</span>
+            <p class="mt-0.5 text-gray-700 font-medium">{{ document.date.strftime('%d.%m.%Y') }}</p>
+        </div>
+        
+        {% if document.sent_date %}
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Versendet am</span>
+            <p class="mt-0.5 text-gray-700 font-medium">{{ document.sent_date.strftime('%d.%m.%Y') }}</p>
+        </div>
+        {% endif %}
+        
+        {% if document.doc_type == 'quote' and document.valid_until %}
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Gültig bis</span>
+            <p class="mt-0.5 font-medium {% if document.valid_until < today and document.status == 'sent' %}text-red-600{% else %}text-gray-700{% endif %}">
+                {{ document.valid_until.strftime('%d.%m.%Y') }}
+                {% if document.valid_until < today and document.status == 'sent' %}
+                <span class="text-xs text-red-500 ml-1">(abgelaufen)</span>
+                {% endif %}
+            </p>
+        </div>
+        {% elif document.doc_type == 'invoice' and document.due_date %}
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Zahlungsfrist</span>
+            <p class="mt-0.5 font-medium {% if document.due_date < today and document.status in ['sent', 'overdue'] %}text-red-600{% else %}text-gray-700{% endif %}">
+                {{ document.due_date.strftime('%d.%m.%Y') }}
+                {% if document.due_date < today and document.status in ['sent', 'overdue'] %}
+                <span class="text-xs text-red-500 ml-1">(überfällig)</span>
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+        
+        {% if document.payment_date %}
+        <div>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Bezahlt am</span>
+            <p class="mt-0.5 text-emerald-700 font-medium">{{ document.payment_date.strftime('%d.%m.%Y') }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    
+    {% if document.source_document %}
+    <div class="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-500">
+        Erstellt aus
+        <a href="{{ url_for('document_view', id=document.source_document.id) }}" class="text-petrol-600 hover:text-petrol-600 font-medium transition-colors">
+            {{ document.source_document.type_label }} {{ document.source_document.number }}
+        </a>
+    </div>
+    {% endif %}
+    {% if document.derived_documents %}
+    <div class="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-500">
+        Abgeleitet:
+        {% for derived in document.derived_documents %}
+        <a href="{{ url_for('document_view', id=derived.id) }}" class="text-petrol-600 hover:text-petrol-600 font-medium transition-colors">
+            {{ derived.type_label }} {{ derived.number }}
+        </a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    
+    {% if document.status_log %}
+    <div class="mt-4 pt-3 border-t border-gray-100">
+        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Verlauf</span>
+        <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            {% for log in document.status_log|reverse %}
+            <span>{{ log.changed_at.strftime('%d.%m.%Y %H:%M') }}: {{ log.from_status or 'neu' }} → {{ log.to_status }}{% if log.note %} <span class="text-gray-400">({{ log.note }})</span>{% endif %}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 fade-up delay-2">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Positionen</h2>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-[11px] font-bold text-gray-400 uppercase border-b border-gray-200">
+                    <th class="text-left pb-2 w-12">Pos</th>
+                    <th class="text-left pb-2">Beschreibung</th>
+                    <th class="text-right pb-2 w-20">Menge</th>
+                    <th class="text-left pb-2 w-24">Einheit</th>
+                    <th class="text-right pb-2 w-16">USt</th>
+                    <th class="text-right pb-2 w-28">Einzelpreis</th>
+                    <th class="text-right pb-2 w-28">Gesamt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in document.groups %}
+                {% set group_idx = loop.index %}
+                
+                <tr class="border-t border-gray-200">
+                    <td class="py-3 font-extrabold text-gray-700" colspan="7">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                {{ group_idx }}. {{ group.title }}
+                                {% if group.description %}
+                                <div class="font-normal text-xs text-gray-400 mt-0.5">{{ group.description }}</div>
+                                {% endif %}
+                            </div>
+                            <button onclick="saveGroupAsTemplate({{ document.id }}, {{ loop.index0 }})"
+                                    class="text-[11px] font-semibold text-gray-400 hover:text-petrol-600 flex items-center gap-1 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Als Gruppen-Vorlage speichern">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"/></svg>
+                                Als Vorlage
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% for item in group.items %}
+                <tr class="border-t border-gray-100 hover:bg-gray-50/50">
+                    <td class="py-2.5 text-gray-400 tabular-nums">{{ group_idx }}.{{ loop.index }}</td>
+                    <td class="py-2.5">
+                        <span class="font-medium text-gray-800">{{ item.title }}</span>
+                        {% if item.description %}
+                        <div class="text-xs text-gray-400 mt-0.5">{{ item.description }}</div>
+                        {% endif %}
+                        {% if item.billing_type == 'recurring' %}
+                        <span class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-violet-100 text-violet-700">Laufend</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2.5 text-right tabular-nums text-gray-700">{{ '{:,.2f}'.format(item.quantity|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                    <td class="py-2.5 text-gray-600">{{ item.unit }}</td>
+                    <td class="py-2.5 text-right tabular-nums text-gray-500">{{ item.vat_rate|int }}%</td>
+                    <td class="py-2.5 text-right tabular-nums text-gray-700">&euro; {{ euro(item.unit_price) }}</td>
+                    <td class="py-2.5 text-right tabular-nums font-semibold text-gray-800">&euro; {{ euro(item.line_total) }}</td>
+                </tr>
+                {% endfor %}
+                
+                {% set group_total = namespace(val=0) %}
+                {% for item in group.items %}{% set group_total.val = group_total.val + item.line_total %}{% endfor %}
+                <tr class="border-t border-gray-200 bg-gray-50/50">
+                    <td colspan="6" class="py-2 text-right text-xs text-gray-400 font-medium">Gruppe {{ group_idx }} netto:</td>
+                    <td class="py-2 text-right tabular-nums font-bold text-gray-600">&euro; {{ euro(group_total.val) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 fade-up delay-3">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Zusammenfassung</h2>
+
+    {% if document.has_recurring %}
+    
+    <div class="flex justify-end">
+        <table class="text-sm">
+            <thead>
+                <tr class="text-[11px] font-bold text-gray-400 uppercase">
+                    <td></td>
+                    <td class="px-4 pb-2 text-right">Einmalig</td>
+                    <td class="px-4 pb-2 text-right">Monatlich</td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="pr-4 py-1 text-gray-500 font-medium">Netto</td>
+                    <td class="px-4 py-1 text-right tabular-nums font-semibold text-gray-700">&euro; {{ euro(document.total_onetime_net) }}</td>
+                    <td class="px-4 py-1 text-right tabular-nums font-semibold text-gray-700">&euro; {{ euro(document.total_recurring_net) }}</td>
+                </tr>
+                {% if document.has_discount %}
+                <tr>
+                    <td class="pr-4 py-1 text-red-600 font-medium">Rabatt{% if document.discount_type == 'percent' %} ({{ document.discount_value|format_decimal }}%){% endif %}</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-red-600">- &euro; {{ euro(document.discount_onetime_amount) }}</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-red-600">- &euro; {{ euro(document.discount_recurring_amount) }}</td>
+                </tr>
+                <tr>
+                    <td class="pr-4 py-1 text-gray-500 font-medium">zzgl. 20% USt.</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-gray-500">&euro; {{ euro(document.total_onetime_after_discount_vat) }}</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-gray-500">&euro; {{ euro(document.total_recurring_after_discount_vat) }}</td>
+                </tr>
+                <tr class="border-t-2 border-gray-900">
+                    <td class="pr-4 pt-2 font-extrabold text-base">Gesamt</td>
+                    <td class="px-4 pt-2 text-right tabular-nums font-extrabold text-base">&euro; {{ euro(document.total_onetime_after_discount_gross) }}</td>
+                    <td class="px-4 pt-2 text-right tabular-nums font-extrabold text-base">&euro; {{ euro(document.total_recurring_after_discount_gross) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td class="pr-4 py-1 text-gray-500 font-medium">zzgl. 20% USt.</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-gray-500">&euro; {{ euro(document.total_onetime_vat) }}</td>
+                    <td class="px-4 py-1 text-right tabular-nums text-gray-500">&euro; {{ euro(document.total_recurring_vat) }}</td>
+                </tr>
+                <tr class="border-t-2 border-gray-900">
+                    <td class="pr-4 pt-2 font-extrabold text-base">Gesamt</td>
+                    <td class="px-4 pt-2 text-right tabular-nums font-extrabold text-base">&euro; {{ euro(document.total_onetime_gross) }}</td>
+                    <td class="px-4 pt-2 text-right tabular-nums font-extrabold text-base">&euro; {{ euro(document.total_recurring_gross) }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    
+    <div class="flex justify-end">
+        <table class="text-sm">
+            <tbody>
+                <tr>
+                    <td class="pr-6 py-1 text-gray-500 font-medium">Netto</td>
+                    <td class="text-right tabular-nums font-semibold text-gray-700 py-1">&euro; {{ euro(document.total_net) }}</td>
+                </tr>
+                {% if document.has_discount %}
+                <tr>
+                    <td class="pr-6 py-1 text-red-600 font-medium">Rabatt{% if document.discount_type == 'percent' %} ({{ document.discount_value|format_decimal }}%){% endif %}</td>
+                    <td class="text-right tabular-nums text-red-600 py-1">- &euro; {{ euro(document.discount_amount) }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td class="pr-6 py-1 text-gray-500 font-medium">zzgl. 20% USt.</td>
+                    <td class="text-right tabular-nums text-gray-500 py-1">&euro; {{ euro(document.total_after_discount_vat if document.has_discount else document.total_vat) }}</td>
+                </tr>
+                <tr class="border-t-2 border-gray-900">
+                    <td class="pr-6 pt-2 font-extrabold text-base">Gesamt</td>
+                    <td class="text-right tabular-nums font-extrabold text-base pt-2">&euro; {{ euro(document.total_after_discount_gross if document.has_discount else document.total_gross) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+
+{% if document.conditions_text %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 fade-up delay-4">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Konditionen</h2>
+    <div class="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{{ document.conditions_text }}</div>
+</div>
+{% endif %}
+
+
+{% if document.internal_notes %}
+<div class="bg-amber-50/50 rounded-2xl border border-amber-200/60 shadow-sm p-6 mb-6 fade-up delay-4">
+    <h2 class="text-sm font-bold text-amber-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+        Interne Notizen
+        <span class="text-[10px] font-normal text-amber-400">(nicht im PDF)</span>
+    </h2>
+    <div class="text-sm text-amber-800 whitespace-pre-line leading-relaxed">{{ document.internal_notes }}</div>
+</div>
+{% endif %}
+
+
+<div class="text-xs text-gray-400 mt-4 flex gap-4 fade-up delay-4">
+    {% if document.created_at %}
+    <span>Erstellt: {{ document.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+    {% endif %}
+    {% if document.updated_at and document.updated_at != document.created_at %}
+    <span>Aktualisiert: {{ document.updated_at.strftime('%d.%m.%Y %H:%M') }}</span>
+    {% endif %}
+    {% if document.dunning_level > 0 %}
+    <span class="text-red-500 font-semibold">Mahnstufe {{ document.dunning_level }}</span>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendDocumentEmail(docId) {
+    const btn = event.target.closest('button');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Wird gesendet...';
+    btn.disabled = true;
+
+    const resp = await fetch(`/documents/${docId}/send-email`, { method: 'POST' });
+    const result = await resp.json();
+
+    if (result.success) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-lg slide-in-down';
+        toast.textContent = 'E-Mail-Entwurf an ' + result.to + ' erstellt';
+        document.body.appendChild(toast);
+        if (result.status_changed) {
+            setTimeout(() => window.location.reload(), 1500);
+            return;
+        }
+        setTimeout(() => toast.remove(), 4000);
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    } else {
+        alert(result.error || 'Fehler beim E-Mail-Versand');
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    }
+}
+
+async function saveGroupAsTemplate(docId, groupIdx) {
+    const resp = await fetch(`/documents/${docId}/groups/${groupIdx}/save-as-template`, { method: 'POST' });
+    const result = await resp.json();
+    if (result.success) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow-lg slide-in-down';
+        toast.textContent = 'Vorlage "' + result.title + '" gespeichert';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    } else {
+        alert(result.error || 'Fehler beim Speichern');
+    }
+}
+</script>
+{% endblock %}

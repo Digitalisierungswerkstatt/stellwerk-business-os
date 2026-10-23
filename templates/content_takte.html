@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Soll-Takte · Content-Kalender{% endblock %}
+
+{% set platform_labels = dict(platforms) %}
+{% set input_cls = 'w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-petrol-200' %}
+
+{% block content %}
+<div class="max-w-[1400px] mx-auto fade-up">
+    <div class="mb-6">
+        <a href="{{ url_for('content_calendar_bp.content_calendar') }}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Content-Kalender
+        </a>
+    </div>
+
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Soll-Takte</h1>
+            <p class="text-sm text-gray-400 mt-0.5">Ist im Rahmen des Takts je Mandat und Kanal etwas geplant? Gezählt wird jeder datierte Eintrag, egal welcher Status.</p>
+        </div>
+        <form method="GET" class="flex items-center gap-2 text-xs text-gray-500">
+            Horizont
+            <select name="wochen" onchange="this.form.submit()" class="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
+                {% for w in [2, 4, 8, 12] %}<option value="{{ w }}" {{ 'selected' if w == wochen }}>{{ w }} Wochen</option>{% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if luecken %}
+    <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <strong>{{ luecken|length }} Lücke{{ '' if luecken|length == 1 else 'n' }}</strong> in den nächsten {{ wochen }} Wochen.
+        Je Lücke entscheiden: Eintrag anlegen, oder den Takt bewusst anpassen (gültig bis, Notiz).
+    </div>
+    {% elif abdeckung %}
+    <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        Alle Takte sind für die nächsten {{ wochen }} Wochen gedeckt.
+    </div>
+    {% endif %}
+
+    {% if ohne_takt %}
+    <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <strong>Social-Mandat ohne gültigen Takt:</strong>
+        {% for k in ohne_takt %}{{ k.kunde }}{{ ', ' if not loop.last }}{% endfor %}.
+        <span class="text-amber-700">Für die Prüfung unsichtbar. Takt anlegen oder das Häkchen „Social-Mandat“ am Kontakt entfernen.</span>
+    </div>
+    {% endif %}
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 overflow-x-auto">
+        {% if not abdeckung %}
+        <p class="text-sm text-gray-400">Noch kein Takt angelegt.</p>
+        {% endif %}
+        <table class="w-full text-sm">
+            {% for a in abdeckung %}
+            {% set t = a.takt %}
+            <tr class="border-b border-gray-100 last:border-0 align-top">
+                <td class="py-3 pr-4 whitespace-nowrap">
+                    <div class="font-semibold text-gray-900">{{ t.kunde }}</div>
+                    <div class="text-xs text-gray-500">{{ platform_labels.get(t.platform, t.platform) }} · {{ a.label }}</div>
+                    {% if t.gueltig_ab or t.gueltig_bis %}
+                    <div class="text-[11px] text-gray-400">{{ t.gueltig_ab.strftime('%d.%m.%Y') if t.gueltig_ab else '…' }} bis {{ t.gueltig_bis.strftime('%d.%m.%Y') if t.gueltig_bis else '…' }}</div>
+                    {% endif %}
+                </td>
+                <td class="py-3">
+                    {% if not a.perioden %}
+                    <span class="text-xs text-gray-400">im Horizont nicht gültig</span>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-2">
+                    {% for p in a.perioden %}
+                        <div class="rounded-lg border px-2.5 py-1.5 min-w-[92px] {{ 'border-red-300 bg-red-50' if p.luecke else 'border-green-200 bg-green-50' }}"
+                             title="{% for e in p.eintraege %}#{{ e.id }} {{ e.termin.strftime('%d.%m.') }} {{ e.status }}: {{ e.title }}&#10;{% endfor %}">
+                            <div class="text-[11px] text-gray-500">{{ p.text }} · {{ p.start.strftime('%d.%m.') }}</div>
+                            <div class="text-sm font-semibold {{ 'text-red-700' if p.luecke else 'text-green-700' }}">{{ p.ist }} / {{ p.soll }}</div>
+                            {% if p.luecke %}
+                            <a href="{{ url_for('content_calendar_bp.content_calendar_new', contact_id=t.contact_id) }}" class="text-[11px] text-red-700 underline">+ Eintrag</a>
+                            {% else %}
+                            <div class="text-[11px] text-gray-500">{% for e in p.eintraege %}{{ e.status }}{{ ', ' if not loop.last }}{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="space-y-6">
+        
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 overflow-x-auto">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Takte</h2>
+            <table class="w-full text-sm">
+                <thead><tr class="text-left text-xs text-gray-400">
+                    <th class="pb-2">Kunde</th><th class="pb-2">Kanal</th><th class="pb-2">Soll</th><th class="pb-2">gültig</th><th></th>
+                </tr></thead>
+                {% for a in abdeckung %}
+                {% set t = a.takt %}
+                <tr class="border-t border-gray-100 align-top">
+                    <td class="py-2 pr-3" title="{{ t.notiz or '' }}">{{ t.kunde }}</td>
+                    <td class="py-2 pr-3">{{ platform_labels.get(t.platform, t.platform) }}</td>
+                    <td class="py-2 pr-3 whitespace-nowrap">{{ a.label }}</td>
+                    <td class="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">
+                        {%- if t.gueltig_ab or t.gueltig_bis -%}
+                        {{ t.gueltig_ab.strftime('%d.%m.%Y') if t.gueltig_ab else '…' }} bis {{ t.gueltig_bis.strftime('%d.%m.%Y') if t.gueltig_bis else '…' }}
+                        {%- else -%}laufend{%- endif -%}
+                    </td>
+                    <td class="py-2 whitespace-nowrap text-right">
+                        <a href="{{ url_for('content_calendar_bp.content_takte', edit=t.id, wochen=wochen) }}" class="text-xs text-petrol-600 hover:underline">bearbeiten</a>
+                        <form method="POST" action="{{ url_for('content_calendar_bp.content_takt_delete', id=t.id) }}" class="inline" onsubmit="return confirm('Takt löschen?');">
+                            <button type="submit" class="ml-2 text-xs text-red-600 hover:underline">löschen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 max-w-xl">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ 'Takt bearbeiten' if edit else 'Neuer Takt' }}</h2>
+            <form method="POST" action="{{ url_for('content_calendar_bp.content_takte') }}" class="space-y-3">
+                {% if edit %}<input type="hidden" name="takt_id" value="{{ edit.id }}">{% endif %}
+                <label class="block text-xs text-gray-500">Kunde
+                    <select name="contact_id" required class="{{ input_cls }} mt-1">
+                        <option value="">wählen</option>
+                        {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if edit and edit.contact_id == c.id }}>{{ c.organisation or c.nachname }}</option>{% endfor %}
+                        {% if edit and edit.contact_id not in contacts|map(attribute='id')|list %}<option value="{{ edit.contact_id }}" selected>{{ edit.contact.organisation if edit.contact else edit.contact_id }}</option>{% endif %}
+                    </select>
+                </label>
+                <label class="block text-xs text-gray-500">Kanal
+                    <select name="platform" required class="{{ input_cls }} mt-1">
+                        {% for key, lbl in platforms %}<option value="{{ key }}" {{ 'selected' if edit and edit.platform == key }}>{{ lbl }}</option>{% endfor %}
+                    </select>
+                </label>
+                <div class="grid grid-cols-3 gap-2 text-xs text-gray-500">
+                    <label class="block">Anzahl<input type="number" min="1" name="anzahl" required value="{{ edit.anzahl if edit else 1 }}" class="{{ input_cls }} mt-1"></label>
+                    <label class="block">je<input type="number" min="1" name="intervall" required value="{{ edit.intervall if edit else 1 }}" class="{{ input_cls }} mt-1"></label>
+                    <label class="block">Einheit
+                        <select name="einheit" class="{{ input_cls }} mt-1">
+                            {% for key, einzahl, mehrzahl in einheiten %}<option value="{{ key }}" {{ 'selected' if edit and edit.einheit == key }}>{{ mehrzahl }}</option>{% endfor %}
+                        </select>
+                    </label>
+                </div>
+                <p class="text-[11px] text-gray-400">Beispiele: 1 · 1 · Wochen = wöchentlich, 1 · 2 · Wochen = alle zwei Wochen, 2 · 1 · Monate = zweimal im Monat.</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="block text-xs text-gray-500">gültig ab<input type="date" name="gueltig_ab" value="{{ edit.gueltig_ab.isoformat() if edit and edit.gueltig_ab else '' }}" class="{{ input_cls }} mt-1"></label>
+                    <label class="block text-xs text-gray-500">gültig bis<input type="date" name="gueltig_bis" value="{{ edit.gueltig_bis.isoformat() if edit and edit.gueltig_bis else '' }}" class="{{ input_cls }} mt-1"></label>
+                </div>
+                <label class="block text-xs text-gray-500">Notiz<textarea name="notiz" rows="2" class="{{ input_cls }} mt-1">{{ edit.notiz if edit and edit.notiz else '' }}</textarea></label>
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="px-4 py-2 bg-gradient-to-b from-petrol-500 to-petrol-600 text-white text-sm font-semibold rounded-xl shadow-sm">Speichern</button>
+                    {% if edit %}<a href="{{ url_for('content_calendar_bp.content_takte', wochen=wochen) }}" class="text-xs text-gray-500 hover:underline">abbrechen</a>{% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

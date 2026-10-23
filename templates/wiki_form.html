@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Bearbeiten' if page else 'Neu' }} - Wiki - Stellwerk{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center gap-3 mb-6 fade-up">
+        <a href="{{ url_for('wiki') }}" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+        </a>
+        <h1 class="font-headline text-xl font-bold text-gray-900 dark:text-white">
+            {% if mode == 'page' %}
+                {{ 'Seite bearbeiten' if page else 'Neue Wiki-Seite' }}
+            {% else %}
+                {{ 'Eintrag bearbeiten' if page else 'Neuer Skill / Agent / Command' }}
+            {% endif %}
+        </h1>
+    </div>
+
+    <form method="POST"
+          action="{% if mode == 'page' %}{{ url_for('wiki_page_edit', id=page.id) if page else url_for('wiki_page_new') }}{% else %}{{ url_for('wiki_entry_edit', id=page.id) if page else url_for('wiki_entry_new') }}{% endif %}"
+          class="space-y-5 fade-up delay-1"
+          x-data="wikiForm()">
+
+        {% if mode == 'page' %}
+        
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Titel *</label>
+                <input type="text" name="title" value="{{ page.title if page else '' }}" required
+                       class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                       placeholder="z.B. Brand Book, Onboarding-Checkliste">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kategorie</label>
+                <input type="text" name="category" value="{{ page.category if page and page.category else '' }}" list="categories"
+                       class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                       placeholder="z.B. Prozesse, Design, Intern">
+                <datalist id="categories">
+                    {% for c in all_categories %}<option value="{{ c }}">{% endfor %}
+                </datalist>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Inhalt</label>
+                <textarea name="content" rows="16"
+                          class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                          placeholder="Freitext, Markdown, Notizen…">{{ page.content if page else '' }}</textarea>
+            </div>
+            <div>
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="pinned" {{ 'checked' if page and page.pinned }}
+                           class="rounded border-gray-300 text-petrol-500 focus:ring-petrol-200">
+                    <span class="text-xs text-gray-600 dark:text-gray-400">Angepinnt (wird oben angezeigt)</span>
+                </label>
+            </div>
+        </div>
+
+        {% else %}
+        
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Name *</label>
+                    <input type="text" name="name" value="{{ page.name if page else '' }}" required
+                           class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                           placeholder="z.B. gtm-ga4-borlabs-setup">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Typ</label>
+                    <select name="entry_type" class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400">
+                        {% for k, v in entry_types.items() %}
+                        <option value="{{ k }}" {{ 'selected' if page and page.entry_type == k }}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Beschreibung</label>
+                <textarea name="description" rows="3"
+                          class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                          placeholder="Was macht dieser Skill/Agent?">{{ page.description if page else '' }}</textarea>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trigger-Phrasen <span class="font-normal">(kommasepariert)</span></label>
+                <input type="text" name="trigger_phrases" value="{{ page.trigger_phrases if page else '' }}"
+                       class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                       placeholder="z.B. GTM Setup, Tracking, Borlabs">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Beispiel-Aufruf</label>
+                <input type="text" name="example_call" value="{{ page.example_call if page else '' }}"
+                       class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                       placeholder="z.B. /gtm-ga4-borlabs-setup --kunde radhaus.example">
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Leistungsbereich</label>
+                    <select name="leistungsbereich" class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400">
+                        {% for k, v in leistungsbereiche.items() %}
+                        <option value="{{ k }}" {{ 'selected' if page and page.leistungsbereich == k }}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</label>
+                    <select name="status" class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400">
+                        {% for k, v in entry_statuses.items() %}
+                        <option value="{{ k }}" {{ 'selected' if page and page.status == k }}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Hauptdatei/-ordner</label>
+                    <input type="text" name="file_path" value="{{ page.file_path if page else '' }}"
+                           class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                           placeholder="C:\Pfad\zum\Skill">
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notizen</label>
+                <textarea name="notes" rows="6"
+                          class="mt-1 w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-petrol-200 focus:border-petrol-400"
+                          placeholder="Freitext, Anleitung, Kontext…">{{ page.notes if page else '' }}</textarea>
+            </div>
+        </div>
+        {% endif %}
+
+        
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Verknüpfte Dateien & Ordner</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Links zu lokalen Dateien (Explorer-Pfade)</p>
+                </div>
+                <button type="button" @click="addLink()"
+                        class="px-3 py-1 text-[10px] font-bold text-petrol-600 dark:text-petrol-400 border border-petrol-200 dark:border-petrol-700 rounded-lg hover:bg-petrol-50 dark:hover:bg-petrol-900/20 transition-colors">
+                    + Datei-Link
+                </button>
+            </div>
+            <div class="space-y-2">
+                <template x-for="(link, i) in links" :key="i">
+                    <div class="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl">
+                        <div class="flex-1 space-y-2">
+                            <input :name="'fl_label_' + i" x-model="link.label" placeholder="Bezeichnung (z.B. Brand Book)"
+                                   class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs dark:bg-gray-800 dark:text-white">
+                            <input :name="'fl_path_' + i" x-model="link.path" placeholder="C:\Privat\...\Datei.pdf"
+                                   class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs font-mono dark:bg-gray-800 dark:text-white">
+                            <input :name="'fl_desc_' + i" x-model="link.desc" placeholder="Beschreibung (optional)"
+                                   class="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs dark:bg-gray-800 dark:text-white">
+                        </div>
+                        <button type="button" @click="links.splice(i, 1)" class="p-1.5 text-gray-400 hover:text-red-500 transition-colors mt-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </template>
+                <p x-show="links.length === 0" class="text-[11px] text-gray-400 text-center py-3">Keine Datei-Links — klicke "+ Datei-Link" um einen hinzuzufügen</p>
+            </div>
+        </div>
+
+        
+        <div class="flex items-center justify-between">
+            <a href="{{ url_for('wiki') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400">Abbrechen</a>
+            <button type="submit" class="px-6 py-2.5 bg-petrol-500 hover:bg-petrol-600 text-white text-sm font-bold rounded-xl transition-colors shadow-sm">
+                {{ 'Speichern' if page else 'Erstellen' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function wikiForm() {
+    const existing = [
+        {% if page and page.file_links %}
+            {% for fl in page.file_links %}
+            { label: {{ fl.label|tojson }}, path: {{ fl.file_path|tojson }}, desc: {{ fl.description|tojson }} },
+            {% endfor %}
+        {% endif %}
+    ];
+    return {
+        links: existing.length ? existing : [],
+        addLink() { this.links.push({ label: '', path: '', desc: '' }); }
+    };
+}
+</script>
+
+{% endblock %}

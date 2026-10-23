@@ -1,0 +1,14 @@
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.45
+Werkzeug==3.1.5
+MarkupSafe==3.0.3
+openpyxl==3.1.2
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.1
+pillow==12.1.0
+pypdf==6.9.2
+factur-x==4.2
+pdfplumber==0.11.9
+mcp==2.0.0
+pytest==9.0.2

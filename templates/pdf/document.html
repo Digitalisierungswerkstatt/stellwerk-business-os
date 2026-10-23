@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page {
+        size: A4;
+        margin: 25mm 20mm 30mm 20mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-size: 9.5pt;
+        color: #2d3748;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+        padding-bottom: 12px;
+        border-bottom: 2.5px solid #167986;
+    }
+    .header-logo img {
+        height: 48px;
+        width: auto;
+    }
+    .header-right {
+        text-align: right;
+    }
+    .doc-type {
+        font-size: 24pt;
+        font-weight: 700;
+        color: #167986;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+    .doc-number {
+        font-size: 9pt;
+        color: #718096;
+        margin-top: 2px;
+    }
+
+    .sender-line {
+        font-size: 7.5pt;
+        color: #a0aec0;
+        margin-top: 20px;
+        padding-bottom: 3px;
+        border-bottom: 0.5px solid #cbd5e0;
+    }
+
+    .recipient {
+        margin: 6px 0 20px;
+        line-height: 1.6;
+        font-size: 10pt;
+    }
+    .recipient strong {
+        font-size: 10.5pt;
+        color: #1a202c;
+    }
+
+    .meta-grid {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .meta-cell {
+        flex: 1;
+        padding: 8px 12px;
+        border-right: 1px solid #e2e8f0;
+    }
+    .meta-cell:last-child { border-right: none; }
+    .meta-label {
+        font-size: 7pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #167986;
+    }
+    .meta-value {
+        font-size: 9.5pt;
+        color: #2d3748;
+        font-weight: 500;
+        margin-top: 1px;
+    }
+
+    .dunning-banner {
+        background: linear-gradient(135deg, #fff5f5, #fed7d7);
+        border-left: 4px solid #e53e3e;
+        border-radius: 0 4px 4px 0;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+    }
+    .dunning-banner h2 {
+        color: #c53030;
+        font-size: 13pt;
+        font-weight: 700;
+        margin: 0 0 3px;
+    }
+    .dunning-banner p {
+        color: #9b2c2c;
+        font-size: 9pt;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    table.positions {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    table.positions thead th {
+        text-align: left;
+        font-weight: 700;
+        font-size: 7.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #fff;
+        background: #167986;
+        padding: 7px 8px;
+    }
+    table.positions thead th:first-child { border-radius: 3px 0 0 0; }
+    table.positions thead th:last-child { border-radius: 0 3px 0 0; }
+    table.positions thead th.right { text-align: right; }
+    table.positions td {
+        padding: 6px 8px;
+        vertical-align: top;
+        font-size: 9.5pt;
+    }
+    table.positions td.right { text-align: right; }
+    .group-header td {
+        font-weight: 700;
+        font-size: 10pt;
+        color: #167986;
+        padding-top: 14px !important;
+        padding-bottom: 5px !important;
+        border-bottom: 1.5px solid #167986;
+        background: none;
+    }
+    .group-desc td {
+        font-size: 8.5pt;
+        color: #718096;
+        font-style: italic;
+        padding: 2px 8px 8px !important;
+    }
+    .item-row td { border-bottom: 0.5px solid #e2e8f0; }
+    .item-row:last-child td { border-bottom: none; }
+    .item-desc {
+        font-size: 8.5pt;
+        color: #718096;
+        margin-top: 1px;
+    }
+    .billing-badge {
+        display: inline-block;
+        font-size: 7pt;
+        font-weight: 700;
+        color: #fff;
+        background: #d9a33c;
+        padding: 1px 6px;
+        border-radius: 2px;
+        margin-top: 2px;
+        letter-spacing: 0.3px;
+    }
+
+    .summary-wrapper {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 24px;
+    }
+    .summary-table { border-collapse: collapse; }
+    .summary-table td {
+        padding: 5px 14px;
+        text-align: right;
+        font-size: 9.5pt;
+    }
+    .summary-table .label-col {
+        text-align: left;
+        color: #718096;
+        font-weight: 500;
+    }
+    .summary-table .header-col {
+        font-weight: 700;
+        font-size: 7.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #167986;
+        padding-bottom: 8px;
+    }
+    .summary-table .total td {
+        font-weight: 700;
+        font-size: 11.5pt;
+        color: #167986;
+        border-top: 2.5px solid #167986;
+        padding-top: 8px;
+    }
+
+    .validity {
+        margin-top: 20px;
+        font-size: 9pt;
+        color: #718096;
+    }
+    .conditions {
+        margin-top: 28px;
+        padding-top: 14px;
+        border-top: 0.5px solid #e2e8f0;
+    }
+    .conditions p {
+        font-size: 9pt;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        color: #4a5568;
+    }
+    .closing {
+        margin-top: 24px;
+        font-size: 9.5pt;
+        color: #4a5568;
+    }
+
+</style>
+</head>
+<body>
+    
+    <div class="header">
+        <div class="header-logo">
+            {% if logo_base64 %}
+            <img src="data:image/svg+xml;base64,{{ logo_base64 }}" alt="Musterwerkstatt">
+            {% else %}
+            <span style="font-size: 14pt; font-weight: 700; color: #167986;">Musterwerkstatt</span>
+            {% endif %}
+        </div>
+        <div class="header-right">
+            <div class="doc-type">{% if dunning_level %}{{ dunning_title }}{% else %}{{ doc.type_label }}{% endif %}</div>
+            <div class="doc-number">{{ doc.number }}</div>
+        </div>
+    </div>
+
+    {% if dunning_level %}
+    <div class="dunning-banner">
+        <h2>{{ dunning_title }}</h2>
+        <p>{{ dunning_text }}</p>
+    </div>
+    {% endif %}
+
+    
+    <div class="sender-line">
+        {{ company.company_name }} &middot; {{ company.street }} &middot; {{ company.zip_city }}
+    </div>
+
+    
+    <div class="recipient">
+        {% if doc.contact.billing_name %}<strong>{{ doc.contact.billing_name }}</strong><br>{% endif %}
+        {% if doc.contact.full_name %}{% if doc.contact.anrede %}{{ doc.contact.anrede }} {% endif %}{{ doc.contact.full_name }}<br>{% endif %}
+        {% if doc.contact.billing_strasse %}{{ doc.contact.billing_strasse }}<br>{% endif %}
+        {% if doc.contact.billing_plz or doc.contact.billing_stadt %}{{ doc.contact.billing_plz }} {{ doc.contact.billing_stadt }}{% endif %}
+    </div>
+
+    
+    <div class="meta-grid">
+        <div class="meta-cell" style="flex: 1.6;">
+            <div class="meta-label">Betreff</div>
+            <div class="meta-value">{{ doc.subject }}</div>
+        </div>
+        <div class="meta-cell">
+            <div class="meta-label">{{ 'Angebots-Nr.' if doc.doc_type == 'quote' else 'Rechnungs-Nr.' }}</div>
+            <div class="meta-value">{{ doc.number }}</div>
+        </div>
+        <div class="meta-cell">
+            <div class="meta-label">Kunden-Nr.</div>
+            <div class="meta-value">{{ doc.contact.customer_number or '—' }}</div>
+        </div>
+        {% if doc.service_period %}
+        <div class="meta-cell">
+            <div class="meta-label">Leistungszeitraum</div>
+            <div class="meta-value">{{ doc.service_period }}</div>
+        </div>
+        {% endif %}
+        <div class="meta-cell">
+            <div class="meta-label">Datum</div>
+            <div class="meta-value">{{ doc.date.strftime('%d.%m.%Y') }}</div>
+        </div>
+    </div>
+
+    {% if dunning_level %}
+    <p style="margin-bottom: 14px; font-size: 9pt; color: #4a5568;">
+        Bezug: {{ doc.type_label }} {{ doc.number }} vom {{ doc.date.strftime('%d.%m.%Y') }}
+        {% if doc.due_date %}&middot; Zahlungsfrist: {{ doc.due_date.strftime('%d.%m.%Y') }}{% endif %}
+    </p>
+    {% endif %}
+
+    
+    <table class="positions">
+    <thead>
+        <tr>
+            <th style="width: 36px;">Pos.</th>
+            <th>Beschreibung</th>
+            <th style="width: 52px;" class="right">Menge</th>
+            <th style="width: 62px;">Einheit</th>
+            <th style="width: 42px;" class="right">USt.</th>
+            <th style="width: 82px;" class="right">Einzelpreis</th>
+            <th style="width: 82px;" class="right">Gesamt</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for group in doc.groups %}
+        <tr class="group-header"><td colspan="7">{{ group.position + 1 }}. {{ group.title }}</td></tr>
+        {% if group.description %}
+        <tr class="group-desc"><td colspan="7">{{ group.description }}</td></tr>
+        {% endif %}
+        {% for item in group.items %}
+        <tr class="item-row">
+            <td style="color: #a0aec0;">{{ group.position + 1 }}.{{ item.position + 1 }}</td>
+            <td>
+                <strong>{{ item.title }}</strong>
+                {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
+                {% if item.billing_type == 'recurring' %}<div><span class="billing-badge">LAUFEND</span></div>{% endif %}
+            </td>
+            <td class="right" style="font-variant-numeric: tabular-nums;">{{ item.quantity|format_decimal }}</td>
+            <td style="color: #718096;">{{ item.unit }}</td>
+            <td class="right" style="color: #718096;">{{ item.vat_rate|int }}%</td>
+            <td class="right" style="font-variant-numeric: tabular-nums;">{{ item.unit_price|format_euro }} &euro;</td>
+            <td class="right" style="font-weight: 600; font-variant-numeric: tabular-nums;">{{ item.line_total|format_euro }} &euro;</td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+    </tbody>
+    </table>
+
+    
+    <div class="summary-wrapper">
+    {% if doc.has_recurring %}
+    <table class="summary-table">
+        <tr><td class="label-col"></td><td class="header-col">Einmalig</td><td class="header-col">Monatlich</td></tr>
+        <tr><td class="label-col">Netto</td><td>&euro; {{ doc.total_onetime_net|format_euro }}</td><td>&euro; {{ doc.total_recurring_net|format_euro }}</td></tr>
+        {% if doc.has_discount %}
+        <tr><td class="label-col" style="color: #e53e3e;">Rabatt{% if doc.discount_type == 'percent' %} ({{ doc.discount_value|format_decimal }}%){% endif %}</td><td style="color: #e53e3e;">- &euro; {{ doc.discount_onetime_amount|format_euro }}</td><td style="color: #e53e3e;">- &euro; {{ doc.discount_recurring_amount|format_euro }}</td></tr>
+        <tr><td class="label-col">zzgl. {{ doc.vat_rate_label }}USt.</td><td>&euro; {{ doc.total_onetime_after_discount_vat|format_euro }}</td><td>&euro; {{ doc.total_recurring_after_discount_vat|format_euro }}</td></tr>
+        <tr class="total"><td class="label-col">Gesamt</td><td>&euro; {{ doc.total_onetime_after_discount_gross|format_euro }}</td><td>&euro; {{ doc.total_recurring_after_discount_gross|format_euro }}</td></tr>
+        {% else %}
+        <tr><td class="label-col">zzgl. {{ doc.vat_rate_label }}USt.</td><td>&euro; {{ doc.total_onetime_vat|format_euro }}</td><td>&euro; {{ doc.total_recurring_vat|format_euro }}</td></tr>
+        <tr class="total"><td class="label-col">Gesamt</td><td>&euro; {{ doc.total_onetime_gross|format_euro }}</td><td>&euro; {{ doc.total_recurring_gross|format_euro }}</td></tr>
+        {% endif %}
+    </table>
+    {% else %}
+    <table class="summary-table">
+        <tr><td class="label-col">Netto</td><td>&euro; {{ doc.total_net|format_euro }}</td></tr>
+        {% if doc.has_discount %}
+        <tr><td class="label-col" style="color: #e53e3e;">Rabatt{% if doc.discount_type == 'percent' %} ({{ doc.discount_value|format_decimal }}%){% endif %}</td><td style="color: #e53e3e;">- &euro; {{ doc.discount_amount|format_euro }}</td></tr>
+        <tr><td class="label-col">zzgl. {{ doc.vat_rate_label }}USt.</td><td>&euro; {{ doc.total_after_discount_vat|format_euro }}</td></tr>
+        <tr class="total"><td class="label-col">Gesamt</td><td>&euro; {{ doc.total_after_discount_gross|format_euro }}</td></tr>
+        {% else %}
+        <tr><td class="label-col">zzgl. {{ doc.vat_rate_label }}USt.</td><td>&euro; {{ doc.total_vat|format_euro }}</td></tr>
+        <tr class="total"><td class="label-col">Gesamt</td><td>&euro; {{ doc.total_gross|format_euro }}</td></tr>
+        {% endif %}
+    </table>
+    {% endif %}
+    </div>
+
+    {% if doc.doc_type == 'quote' and doc.valid_until %}
+    <p class="validity">Dieses Angebot ist gültig bis {{ doc.valid_until.strftime('%d.%m.%Y') }}.</p>
+    {% elif doc.doc_type == 'invoice' and doc.due_date and not dunning_level %}
+    <p class="validity">Zahlbar bis {{ doc.due_date.strftime('%d.%m.%Y') }}.</p>
+    {% endif %}
+
+    
+    {% set agb_zeigen = doc.doc_type in ('quote', 'invoice')
+                        and 'agb' not in (doc.conditions_text or '')|lower %}
+    {% if doc.conditions_text or agb_zeigen %}
+    <div class="conditions">
+        {% if doc.conditions_text %}<p>{{ doc.conditions_text }}</p>{% endif %}
+        {% if agb_zeigen %}<p>Es gelten unsere Allgemeinen Geschäftsbedingungen unter musterwerkstatt.example/agb.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="closing">
+        
+        {% if dunning_level %}
+        <p>Bei Fragen meld dich einfach kurz.</p>
+        <p style="margin-top: 10px;">Sonnige Grüße<br>
+        <strong>Musterwerkstatt e.U.</strong></p>
+        {% else %}
+        <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
+        <p style="margin-top: 10px;">Mit freundlichen Grüßen<br>
+        <strong>Musterwerkstatt e.U.</strong></p>
+        {% endif %}
+    </div>
+
+</body>
+</html>

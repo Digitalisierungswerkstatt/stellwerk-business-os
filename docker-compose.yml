@@ -1,0 +1,24 @@
+# Die Ports sind bewusst an 127.0.0.1 gebunden. Ohne diese Angabe veröffentlicht
+# Docker sie auf allen Netzwerkschnittstellen und umgeht unter Linux die Firewall.
+# Stellwerk hat keinen Login, siehe README.
+#
+#   docker compose up                      Demo mit erfundenen Daten, http://localhost:5001
+#   docker compose --profile echt up stellwerk   eigener Betrieb, http://localhost:5000
+services:
+  demo:
+    build: .
+    command: demo
+    ports:
+      - "127.0.0.1:5001:5001"
+
+  stellwerk:
+    build: .
+    command: stellwerk
+    profiles: ["echt"]
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+    restart: unless-stopped

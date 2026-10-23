@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+    
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 fade-up">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                <a href="{{ url_for('board') }}" class="hover:text-petrol-600 transition-colors">Board</a>
+                <span>/</span>
+                <span>Aufräumen</span>
+            </div>
+            <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Aufräumen</h1>
+            <p class="text-sm text-gray-400 mt-0.5">Offene Tasks nach Alter · älteste zuerst</p>
+        </div>
+        <a href="{{ url_for('board') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl shadow-sm hover:bg-gray-50 transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Zurück zum Board
+        </a>
+    </div>
+
+    
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-gray-500 mb-5 fade-up delay-1">
+        <span><span class="font-bold text-gray-900" data-open-count>{{ tasks|length }}</span> offene Tasks</span>
+        <span><span class="font-bold {% if stale_count %}text-stone-600{% else %}text-gray-900{% endif %}" data-stale-count>{{ stale_count }}</span> älter als {{ threshold }} Tage</span>
+    </div>
+
+    
+    <p class="text-xs text-gray-400 mb-4 fade-up delay-1">
+        Vorschau — nichts wird automatisch geschlossen. Jede Aktion wird einzeln bestätigt.
+    </p>
+
+    {% if tasks %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden fade-up delay-2" data-cleanup-list>
+        {% set ns = namespace(divider_shown=false) %}
+        {% for task in tasks %}
+        {% set age = task.days_since_update %}
+
+        {% if not task.is_stale and not ns.divider_shown and stale_count > 0 and stale_count < tasks|length %}
+        <div class="px-4 py-1.5 bg-gray-50/70 border-y border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Aktuell (unter {{ threshold }} Tage)
+        </div>
+        {% set ns.divider_shown = true %}
+        {% endif %}
+
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors
+                    {% if task.is_stale %}bg-stone-50/60 border-l-2 border-l-stone-300{% endif %}"
+             data-row="{{ task.id }}">
+
+            
+            <div class="flex-shrink-0 w-16 text-center">
+                {% if age is not none %}
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold tabular-nums
+                             {% if task.is_stale %}bg-stone-200/70 text-stone-600{% else %}bg-gray-50 text-gray-400{% endif %}"
+                      title="{{ age }} Tage ohne Aktualisierung (zuletzt {{ task.updated_at.strftime('%d.%m.%Y') }})">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ age }} T
+                </span>
+                {% else %}
+                <span class="text-[11px] text-gray-300">—</span>
+                {% endif %}
+            </div>
+
+            
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-[10px] text-gray-300">#{{ task.id }}</span>
+                    <a href="{{ url_for('board_task_view', id=task.id) }}" class="text-sm font-medium text-gray-900 truncate hover:text-petrol-600 transition-colors">{{ task.title }}</a>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-400">
+                    <span>{{ stage_labels.get(task.status, task.status) }}</span>
+                    {% if task.category %}<span class="text-petrol-600">· {{ task.category }}</span>{% endif %}
+                    {% if task.contact %}<span>· {{ task.contact.display_name }}</span>{% endif %}
+                    {% if task.due_date %}<span class="{% if task.due_date < today %}text-red-400{% endif %}">· fällig {{ task.due_date.strftime('%d.%m.') }}</span>{% endif %}
+                </div>
+            </div>
+
+            
+            <div class="flex-shrink-0 flex items-center gap-1.5">
+                <button type="button"
+                        onclick="cleanupMove('{{ url_for('board_task_move', id=task.id) }}', {{ task.id }}, 'backlog', 'Backlog')"
+                        class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                    Backlog
+                </button>
+                <button type="button"
+                        onclick="cleanupMove('{{ url_for('board_task_move', id=task.id) }}', {{ task.id }}, 'erledigt', 'Erledigt')"
+                        class="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors">
+                    Erledigt
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-16 text-gray-300 fade-up delay-2">
+        <svg class="w-10 h-10 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-sm">Keine offenen Tasks. Sauber.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function cleanupMove(url, id, status, label) {
+    if (!confirm('Task #' + id + ' nach "' + label + '" verschieben?')) return;
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify({status: status, position: 0})
+    }).then(r => r.json()).then(data => {
+        if (!data.success) { alert('Verschieben fehlgeschlagen.'); return; }
+        const row = document.querySelector('[data-row="' + id + '"]');
+        if (row) {
+            row.style.transition = 'opacity .3s, transform .3s';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(8px)';
+            setTimeout(() => { row.remove(); cleanupRecount(); }, 300);
+        }
+    }).catch(() => alert('Verschieben fehlgeschlagen.'));
+}
+
+function cleanupRecount() {
+    const rows = document.querySelectorAll('[data-cleanup-list] [data-row]');
+    const openEl = document.querySelector('[data-open-count]');
+    if (openEl) openEl.textContent = rows.length;
+    if (rows.length === 0) window.location.reload();
+}
+</script>
+{% endblock %}

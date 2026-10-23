@@ -1,0 +1,765 @@
+{% extends "base.html" %}
+{% block title %}Kontakte - Stellwerk{% endblock %}
+
+{% block content %}
+{% set avatar_colors = ['bg-petrol-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-cyan-500', 'bg-violet-500', 'bg-fuchsia-500', 'bg-teal-500'] %}
+{% set status_border = {
+    'new': 'border-l-slate-300',
+    'contacted': 'border-l-blue-400',
+    'qualified': 'border-l-amber-400',
+    'proposal': 'border-l-violet-400',
+    'negotiation': 'border-l-orange-400',
+    'won': 'border-l-emerald-400',
+    'lost': 'border-l-rose-400',
+    'on_hold': 'border-l-gray-400',
+} %}
+{% set prio_colors = {'A': 'bg-emerald-400', 'B': 'bg-amber-400', 'C': 'bg-gray-300'} %}
+
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 fade-up">
+    <div>
+        <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Kontakte</h1>
+        <p class="text-sm text-gray-500 mt-0.5">{{ total_contacts_count }} Kontakt{% if total_contacts_count != 1 %}e{% endif %}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ url_for('export_data', status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter) }}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Export
+        </a>
+        <a href="{{ url_for('contact_new') }}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl hover:from-petrol-600 hover:to-petrol-700 text-sm font-semibold shadow-lg shadow-petrol-500/25 transition-all duration-300">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Neuer Kontakt
+        </a>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-4 mb-6 fade-up delay-1 hover:shadow-md transition-shadow duration-300">
+    <form method="GET" class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1 relative group">
+            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-petrol-500 transition-colors pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+            <input type="text" name="search" value="{{ search }}" placeholder="Suche in allen Feldern oder #ID..."
+                   class="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200">
+        </div>
+        <div class="sm:w-44">
+            <select name="status" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                <option value="">Alle Status</option>
+                {% for value, label in stages %}
+                <option value="{{ value }}" {{ 'selected' if status_filter == value else '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="sm:w-44">
+            <select name="land" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                <option value="">Alle Länder</option>
+                {% for country in countries %}
+                <option value="{{ country }}" {{ 'selected' if land_filter == country else '' }}>{{ country }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="sm:w-40">
+            <select name="quelle" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                <option value="">Alle Quellen</option>
+                {% for value, label in quellen_options %}{% if value %}
+                <option value="{{ value }}" {{ 'selected' if quelle_filter == value else '' }}>{{ label }}</option>
+                {% endif %}{% endfor %}
+            </select>
+        </div>
+        <div class="sm:w-40">
+            <select name="branche" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                <option value="">Alle Branchen</option>
+                {% for value, label in branchen_options %}{% if value %}
+                <option value="{{ value }}" {{ 'selected' if branche_filter == value else '' }}>{{ label }}</option>
+                {% endif %}{% endfor %}
+            </select>
+        </div>
+        {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+        <button type="submit" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-sm font-semibold transition-colors">Suchen</button>
+        {% if search or status_filter or land_filter or quelle_filter or branche_filter %}
+        <a href="{{ url_for('contacts') }}" class="px-4 py-2.5 text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">Zurücksetzen</a>
+        {% endif %}
+    </form>
+    <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <a href="{{ url_for('contacts_filter') }}" class="text-xs font-semibold text-petrol-600 hover:text-petrol-600 transition-colors">Erweiterter Filter &rarr;</a>
+            <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view=view_mode, archived='' if show_archived else '1') }}"
+               class="text-xs font-semibold {{ 'text-petrol-600' if show_archived else 'text-gray-400 hover:text-petrol-600' }} transition-colors">
+               {% if show_archived %}&larr; Archiv ausblenden{% else %}Archiv anzeigen{% if archived_count %} ({{ archived_count }}){% endif %}{% endif %}
+            </a>
+        </div>
+        <div class="flex gap-1">
+            <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view='standard') }}"
+               class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if view_mode == 'standard' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Standard</a>
+            <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view='finanzen') }}"
+               class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if view_mode == 'finanzen' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Finanzen</a>
+            <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view='karten') }}"
+               class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if view_mode == 'karten' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Karten</a>
+        </div>
+    </div>
+</div>
+
+
+{% if contacts %}
+<div x-data="contactsManager()" class="fade-up delay-2">
+
+<div x-show="selectedIds.length > 0" x-cloak x-transition
+     class="mb-3 p-3 bg-petrol-50 rounded-xl border border-petrol-200/60 flex items-center gap-3">
+    <span class="text-sm font-bold text-petrol-700" x-text="selectedIds.length + ' ausgewählt'"></span>
+    <select x-model="bulkStatus" class="px-3 py-1.5 border border-petrol-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 transition-all">
+        <option value="">Status wählen...</option>
+        {% for value, label in stages %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+    </select>
+    <button @click="applyBulkStatus()" :disabled="!bulkStatus"
+            :class="bulkStatus ? 'bg-petrol-500 hover:bg-petrol-600' : 'bg-gray-300 cursor-not-allowed'"
+            class="px-4 py-1.5 text-white rounded-lg text-sm font-semibold transition-colors">Anwenden</button>
+    <button @click="selectedIds = []; document.querySelectorAll('.bulk-cb').forEach(c => c.checked = false)"
+            class="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm font-medium transition-colors">Abbrechen</button>
+</div>
+{% if view_mode == 'karten' %}
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    {% for contact in contacts %}
+    <div class="relative bg-white rounded-xl border border-gray-200/60 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-l-[3px] {{ status_border.get(contact.status, 'border-l-transparent') }}">
+        <a href="{{ url_for('contact_view', id=contact.id) }}" class="absolute inset-0 z-0 rounded-xl"></a>
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl {{ avatar_colors[contact.id % avatar_colors|length] }} flex items-center justify-center flex-shrink-0 shadow-sm">
+                <span class="text-white text-xs font-bold">{{ contact.display_name[0:2]|upper }}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-gray-900 truncate">
+                    {{ contact.display_name }}
+                    <span class="ml-1 font-mono text-[10px] text-gray-300 align-middle">#{{ contact.id }}</span>
+                </p>
+                {% if contact.organisation and contact.full_name %}
+                <p class="text-[11px] text-gray-400 truncate">{{ contact.full_name }}</p>
+                {% endif %}
+            </div>
+            <button @click.prevent.stop="openReminder({{ contact.id }}, {{ contact.display_name|tojson|forceescape }}, '{{ contact.erinnerung.isoformat() if contact.erinnerung else '' }}', {{ (contact.erinnerungstext or '')|tojson|forceescape }})"
+                    title="Erinnerung"
+                    class="relative z-10 inline-flex items-center gap-1 p-1.5 rounded-lg text-xs font-medium transition-all duration-200
+                    {% if contact.erinnerung %}
+                        {% if contact.erinnerung < today %}bg-red-50 text-red-600 hover:bg-red-100
+                        {% elif contact.erinnerung == today %}bg-amber-50 text-amber-600 hover:bg-amber-100
+                        {% else %}bg-blue-50 text-blue-600 hover:bg-blue-100{% endif %}
+                    {% else %}text-gray-300 hover:text-gray-600 hover:bg-gray-100{% endif %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {% if contact.erinnerung %}
+                <span class="tabular-nums text-[10px]">{{ contact.erinnerung.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </button>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold
+                {% if contact.status == 'won' %}bg-emerald-50 text-emerald-700
+                {% elif contact.status == 'lost' %}bg-red-50 text-red-700
+                {% elif contact.status == 'on_hold' %}bg-gray-100 text-gray-500
+                {% elif contact.status == 'proposal' %}bg-violet-50 text-violet-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ dict(stages).get(contact.status, contact.status) }}
+            </span>
+            <div class="flex items-center gap-2 text-[11px] text-gray-400">
+                {% if contact.deal_value %}
+                <span class="font-semibold text-gray-600 tabular-nums">{{ '{:,.0f}'.format(contact.deal_value).replace(',', '.') }} €</span>
+                {% endif %}
+                {% if contact.kontaktiert %}
+                {% set days_ago = (today - contact.kontaktiert).days %}
+                <span class="tabular-nums {% if days_ago > 30 %}text-red-500{% elif days_ago > 14 %}text-amber-500{% endif %}">{{ days_ago }}d</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
+    <table class="min-w-full divide-y divide-gray-100">
+        <thead>
+            <tr class="bg-gray-50/80">
+                <th class="w-10 px-3 py-3.5 text-center">
+                    <input type="checkbox" @change="toggleAll($event)" class="w-3.5 h-3.5 rounded border-gray-300 text-petrol-500 focus:ring-petrol-500/20">
+                </th>
+                {% if view_mode != 'finanzen' %}
+                {% set name_dir = 'asc' if sort_by == 'name' and sort_dir == 'desc' else 'desc' %}
+                <th class="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider">
+                    <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view='standard', sort='name', dir=name_dir) }}" class="inline-flex items-center gap-0.5 {{ 'text-petrol-600' if sort_by == 'name' else 'text-gray-500' }} hover:text-petrol-600 transition-colors">
+                        Kontakt
+                        {% if sort_by == 'name' %}
+                        <svg class="w-3 h-3 {{ 'rotate-180' if sort_dir == 'asc' else '' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        {% endif %}
+                    </a>
+                </th>
+                {% else %}
+                <th class="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Kontakt</th>
+                {% endif %}
+                {% if view_mode == 'finanzen' %}
+                {% set base_url = url_for('contacts', search=search, status=status_filter, land=land_filter, view='finanzen') %}
+                {% macro sort_link(col, label, align='right', hide='') %}
+                {% set new_dir = 'asc' if sort_by == col and sort_dir == 'desc' else 'desc' %}
+                <th class="px-5 py-3.5 text-{{ align }} text-[11px] font-bold uppercase tracking-wider {{ hide }}">
+                    <a href="{{ base_url }}&sort={{ col }}&dir={{ new_dir }}" class="inline-flex items-center gap-0.5 {{ 'text-petrol-600' if sort_by == col else 'text-gray-500' }} hover:text-petrol-600 transition-colors">
+                        {{ label }}
+                        {% if sort_by == col %}
+                        <svg class="w-3 h-3 {{ 'rotate-180' if sort_dir == 'asc' else '' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        {% endif %}
+                    </a>
+                </th>
+                {% endmacro %}
+                <th class="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                {{ sort_link('deal', 'Deal-Wert', 'right', 'hidden md:table-cell') }}
+                {{ sort_link('received', 'Eingegangen', 'right', 'hidden md:table-cell') }}
+                {{ sort_link('zeitkosten', 'Zeitkosten', 'right', 'hidden lg:table-cell') }}
+                {{ sort_link('profit', 'Profit', 'right', 'hidden lg:table-cell') }}
+                {{ sort_link('eff_rate', '€/Std eff.', 'right', 'hidden sm:table-cell') }}
+                {% else %}
+                {% macro std_sort(col, label, align='left', hide='') %}
+                {% set new_dir = 'asc' if sort_by == col and sort_dir == 'desc' else 'desc' %}
+                <th class="px-5 py-3.5 text-{{ align }} text-[11px] font-bold uppercase tracking-wider {{ hide }}">
+                    <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view='standard', sort=col, dir=new_dir) }}" class="inline-flex items-center gap-0.5 {{ 'text-petrol-600' if sort_by == col else 'text-gray-500' }} hover:text-petrol-600 transition-colors">
+                        {{ label }}
+                        {% if sort_by == col %}
+                        <svg class="w-3 h-3 {{ 'rotate-180' if sort_dir == 'asc' else '' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        {% endif %}
+                    </a>
+                </th>
+                {% endmacro %}
+                {{ std_sort('score', 'Score', 'center', 'hidden sm:table-cell') }}
+                <th class="px-5 py-3.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">E-Mail</th>
+                {{ std_sort('branche', 'Branche', 'left', 'hidden lg:table-cell') }}
+                {{ std_sort('kontaktiert', 'Kontakt', 'center', 'hidden lg:table-cell') }}
+                {{ std_sort('status', 'Status', 'left', '') }}
+                {{ std_sort('deal', 'Deal', 'right', 'hidden lg:table-cell') }}
+                {{ std_sort('erinnerung', 'Erinnerung', 'left', 'hidden sm:table-cell') }}
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100/80">
+            {% for contact in contacts %}
+            <tr class="group/row hover:bg-petrol-50/30 cursor-pointer transition-all duration-150 border-l-[3px] {{ status_border.get(contact.status, 'border-l-transparent') }}"
+                onclick="window.location='{{ url_for('contact_view', id=contact.id) }}'">
+                <td class="w-10 px-3 py-3.5 text-center" @click.stop>
+                    <input type="checkbox" class="bulk-cb w-3.5 h-3.5 rounded border-gray-300 text-petrol-500 focus:ring-petrol-500/20"
+                           value="{{ contact.id }}" @change="toggleSelect({{ contact.id }}, $event)">
+                </td>
+                <td class="px-5 py-3.5">
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <div class="w-9 h-9 rounded-xl {{ avatar_colors[contact.id % avatar_colors|length] }} flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <span class="text-white text-[11px] font-bold">{{ contact.display_name[0:2]|upper }}</span>
+                            </div>
+                            {% if contact.prioritaet %}
+                            <div class="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full {{ prio_colors.get(contact.prioritaet, 'bg-gray-300') }} ring-2 ring-white"></div>
+                            {% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-gray-900 truncate">
+                                {{ contact.display_name }}
+                                <span class="ml-1 font-mono text-[10px] text-gray-300 align-middle">#{{ contact.id }}</span>
+                            </p>
+                            {% if contact.organisation and contact.full_name %}
+                            <p class="text-xs text-gray-400 truncate">{{ contact.full_name }}</p>
+                            {% elif contact.position %}
+                            <p class="text-xs text-gray-400 truncate">{{ contact.position }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                {% if view_mode == 'finanzen' %}
+                <td class="px-5 py-3.5" @click.stop>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold
+                        {% if contact.status == 'won' %}bg-emerald-50 text-emerald-700
+                        {% elif contact.status == 'lost' %}bg-red-50 text-red-700
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
+                        {{ dict(stages).get(contact.status, contact.status) }}
+                    </span>
+                </td>
+                <td class="px-5 py-3.5 hidden md:table-cell text-right">
+                    {% if contact.deal_value %}
+                    <span class="text-sm font-medium text-gray-700 tabular-nums">{{ contact.deal_value|format_euro }} €</span>
+                    {% else %}<span class="text-sm text-gray-400">-</span>{% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden md:table-cell text-right">
+                    {% if contact.received_payments_total > 0 %}
+                    <span class="text-sm font-bold text-emerald-600 tabular-nums">{{ contact.received_payments_total|format_euro }} €</span>
+                    {% else %}<span class="text-sm text-gray-400">-</span>{% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden lg:table-cell text-right">
+                    {% if contact.time_value > 0 %}
+                    <span class="text-sm text-gray-600 tabular-nums">{{ contact.time_value|format_euro }} €</span>
+                    {% else %}<span class="text-sm text-gray-400">-</span>{% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden lg:table-cell text-right">
+                    {% set profit = contact.profitability %}
+                    {% if contact.received_payments_total > 0 or contact.time_value > 0 %}
+                    <span class="text-sm font-bold tabular-nums {{ 'text-emerald-600' if profit >= 0 else 'text-red-500' }}">{{ profit|format_euro }} €</span>
+                    {% else %}<span class="text-sm text-gray-400">-</span>{% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden sm:table-cell text-right">
+                    {% set total_hours = (contact.time_entries|selectattr('timer_start', 'none')|sum(attribute='dauer_minuten')) / 60 %}
+                    {% if total_hours > 0 and contact.received_payments_total > 0 %}
+                    {% set eff_rate = contact.received_payments_total / total_hours %}
+                    <span class="text-sm font-bold tabular-nums {{ 'text-emerald-600' if eff_rate >= 100 else ('text-amber-500' if eff_rate >= 60 else 'text-red-500') }}">{{ '{:,.0f}'.format(eff_rate).replace(',', '.') }} €</span>
+                    {% else %}<span class="text-sm text-gray-400">-</span>{% endif %}
+                </td>
+                {% else %}
+                <td class="px-5 py-3.5 hidden sm:table-cell text-center">
+                    {% set score = contact.lead_score or 0 %}
+                    <span class="inline-flex items-center justify-center w-8 h-6 rounded-md text-[11px] font-bold tabular-nums
+                        {% if score >= 40 %}bg-emerald-100 text-emerald-700
+                        {% elif score >= 25 %}bg-blue-100 text-blue-700
+                        {% elif score >= 15 %}bg-amber-100 text-amber-700
+                        {% elif score >= 0 %}bg-gray-100 text-gray-500
+                        {% else %}bg-red-100 text-red-600{% endif %}"
+                        title="Lead Score: {{ score }}">{{ score }}</span>
+                </td>
+                <td class="px-5 py-3.5 hidden md:table-cell">
+                    <span class="text-sm text-gray-500 truncate">{{ contact.primary_email or '' }}</span>
+                </td>
+                <td class="px-5 py-3.5 hidden lg:table-cell">
+                    {% if contact.branche %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-600">{{ contact.branche }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden lg:table-cell text-center">
+                    {% if contact.kontaktiert %}
+                    {% set days_ago = (today - contact.kontaktiert).days %}
+                    <span class="text-[11px] font-bold tabular-nums {% if days_ago > 30 %}text-red-500{% elif days_ago > 14 %}text-amber-500{% else %}text-gray-500{% endif %}">
+                        {% if days_ago == 0 %}heute{% elif days_ago == 1 %}gestern{% else %}vor {{ days_ago }}d{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="text-[11px] text-gray-300">-</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3.5" @click.stop>
+                    <button @click="openStatusChange({{ contact.id }}, {{ contact.display_name|tojson|forceescape }}, {{ contact.status|tojson|forceescape }}, $event)"
+                            title="Status ändern"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold transition-all duration-150 hover:ring-2 hover:ring-offset-1
+                            {% if contact.status == 'new' %}bg-gray-100 text-gray-600 hover:ring-gray-300
+                            {% elif contact.status == 'contacted' %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 hover:ring-blue-300
+                            {% elif contact.status == 'qualified' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-700/10 hover:ring-amber-300
+                            {% elif contact.status == 'proposal' %}bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-700/10 hover:ring-violet-300
+                            {% elif contact.status == 'negotiation' %}bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-700/10 hover:ring-orange-300
+                            {% elif contact.status == 'won' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-700/10 hover:ring-emerald-300
+                            {% elif contact.status == 'lost' %}bg-red-50 text-red-700 ring-1 ring-inset ring-red-700/10 hover:ring-red-300
+                            {% endif %}">
+                        {{ dict(stages).get(contact.status, contact.status) }}
+                        <svg class="w-2.5 h-2.5 opacity-50" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                    </button>
+                </td>
+                <td class="px-5 py-3.5 hidden lg:table-cell text-right">
+                    {% if contact.deal_value %}
+                    <span class="text-sm font-medium text-gray-700 tabular-nums">{{ '{:,.0f}'.format(contact.deal_value).replace(',', '.') }} &euro;</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3.5 hidden sm:table-cell" @click.stop>
+                    <div class="flex items-center gap-1">
+                        
+                        <a href="{{ url_for('contact_edit', id=contact.id) }}"
+                           title="Bearbeiten"
+                           class="p-1.5 rounded-lg text-gray-300 hover:text-petrol-600 hover:bg-petrol-50 transition-all duration-150">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+                            </svg>
+                        </a>
+                        
+                        <button @click.stop="openInteraction({{ contact.id }}, {{ contact.display_name|tojson|forceescape }})"
+                                title="Interaktion loggen"
+                                class="p-1.5 rounded-lg text-gray-300 hover:text-petrol-600 hover:bg-petrol-50 transition-all duration-150">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/>
+                            </svg>
+                        </button>
+                        
+                        <button @click="openReminder({{ contact.id }}, {{ contact.display_name|tojson|forceescape }}, '{{ contact.erinnerung.isoformat() if contact.erinnerung else '' }}', {{ (contact.erinnerungstext or '')|tojson|forceescape }})"
+                                title="Erinnerung"
+                                class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200
+                                {% if contact.erinnerung %}
+                                    {% if contact.erinnerung < today %}bg-red-50 text-red-600 hover:bg-red-100
+                                    {% elif contact.erinnerung == today %}bg-amber-50 text-amber-600 hover:bg-amber-100
+                                    {% else %}bg-blue-50 text-blue-600 hover:bg-blue-100{% endif %}
+                                {% else %}text-gray-300 hover:text-gray-600 hover:bg-gray-100{% endif %}">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {% if contact.erinnerung %}
+                            <span class="tabular-nums">{{ contact.erinnerung.strftime('%d.%m.') }}</span>
+                            {% endif %}
+                        </button>
+                    </div>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if total_pages > 1 %}
+<div class="flex items-center justify-between mt-4 px-1">
+    <p class="text-xs text-gray-400">{{ total_contacts_count }} Kontakte gesamt · Seite {{ page }} von {{ total_pages }}</p>
+    <div class="flex gap-1">
+        {% if page > 1 %}
+        <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view=view_mode, sort=sort_by, dir=sort_dir, page=page-1) }}"
+           class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">&larr; Zurück</a>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="px-3 py-1.5 bg-petrol-500 text-white rounded-lg text-xs font-bold">{{ p }}</span>
+        {% elif p <= 3 or p >= total_pages - 1 or (p >= page - 1 and p <= page + 1) %}
+        <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view=view_mode, sort=sort_by, dir=sort_dir, page=p) }}"
+           class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">{{ p }}</a>
+        {% elif p == 4 or p == total_pages - 2 %}
+        <span class="px-2 py-1.5 text-xs text-gray-400">…</span>
+        {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="{{ url_for('contacts', search=search, status=status_filter, land=land_filter, quelle=quelle_filter, branche=branche_filter, view=view_mode, sort=sort_by, dir=sort_dir, page=page+1) }}"
+           class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Weiter &rarr;</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+    
+    <div x-show="showStatusModal" x-cloak
+         class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
+         @click.self="showStatusModal = false"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-5 w-72 max-h-[70vh] overflow-y-auto fixed"
+             :style="`top: ${Math.min(modalY, window.innerHeight - 400)}px; left: 50%; transform: translateX(-50%);`"
+             @click.stop
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+            <h3 class="text-sm font-bold text-gray-900 mb-0.5">Status ändern</h3>
+            <p class="text-xs text-gray-400 mb-4" x-text="statusContactName"></p>
+            
+            <div x-show="!showLostReason" class="space-y-1.5">
+                {% for value, label in stages %}
+                <button @click="selectStatus('{{ value }}')"
+                        :class="statusCurrent === '{{ value }}' ? 'ring-2 ring-petrol-400 bg-petrol-50 text-petrol-700' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'"
+                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between">
+                    <span>{{ label }}</span>
+                    <svg x-show="statusCurrent === '{{ value }}'" class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                </button>
+                {% endfor %}
+            </div>
+            
+            <div x-show="showLostReason" class="space-y-3">
+                <button @click="showLostReason = false" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                    Zurück
+                </button>
+                <p class="text-xs font-semibold text-gray-500">Verlustgrund (optional)</p>
+                <select x-model="lostReason" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400">
+                    <option value="">Kein Grund</option>
+                    {% for value, label in lost_reasons %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button @click="confirmStatusChange()"
+                        class="w-full px-4 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition-colors">
+                    Als verloren markieren
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div x-show="showInteractionModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+         @click.self="showInteractionModal = false"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-5 w-80 max-w-[90vw]" @click.stop
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+            <h3 class="text-sm font-bold text-gray-900 mb-0.5">Interaktion loggen</h3>
+            <p class="text-xs text-gray-400 mb-4" x-text="interactionContactName"></p>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Datum</label>
+                        <input type="date" x-model="interactionDate"
+                               class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Typ</label>
+                        <select x-model="interactionTyp"
+                                class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                            {% for value, label in kontakt_wie_options %}{% if value %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endif %}{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Notiz (optional)</label>
+                    <input type="text" x-model="interactionNotiz"
+                           placeholder="Was wurde besprochen?"
+                           @keydown.enter.prevent="saveInteraction()"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button @click="saveInteraction()" :disabled="!interactionTyp"
+                        :class="interactionTyp ? 'bg-petrol-500 hover:bg-petrol-600' : 'bg-gray-300 cursor-not-allowed'"
+                        class="flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                    <span x-show="!interactionSaving">Speichern</span>
+                    <span x-show="interactionSaving" class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Speichern...
+                    </span>
+                </button>
+                <button @click="showInteractionModal = false"
+                        class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">
+                    Abbrechen
+                </button>
+            </div>
+            
+            <div x-show="interactionDone" x-transition class="mt-2.5 text-center text-xs font-semibold text-petrol-600">
+                Gespeichert ✓
+            </div>
+        </div>
+    </div>
+
+    
+    <div x-show="showModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+         @click.self="showModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-96 max-w-[90vw]" @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100">
+            <h3 class="text-sm font-bold text-gray-900 mb-1">Erinnerung setzen</h3>
+            <p class="text-xs text-gray-500 mb-4" x-text="contactName"></p>
+
+            
+            <div class="flex gap-2 mb-4">
+                <button @click="reminderDate = '{{ today.isoformat() }}'" type="button"
+                        :class="reminderDate === '{{ today.isoformat() }}' ? 'bg-petrol-100 text-petrol-600 ring-1 ring-indigo-500/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all">
+                    Heute
+                </button>
+                <button @click="reminderDate = '{{ tomorrow.isoformat() }}'" type="button"
+                        :class="reminderDate === '{{ tomorrow.isoformat() }}' ? 'bg-petrol-100 text-petrol-600 ring-1 ring-indigo-500/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all">
+                    Morgen
+                </button>
+                <button @click="reminderDate = '{{ next_week.isoformat() }}'" type="button"
+                        :class="reminderDate === '{{ next_week.isoformat() }}' ? 'bg-petrol-100 text-petrol-600 ring-1 ring-indigo-500/30' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all">
+                    In 1 Woche
+                </button>
+            </div>
+
+            <div class="space-y-3 mb-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Datum</label>
+                    <input type="date" x-model="reminderDate"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Notiz (optional)</label>
+                    <input type="text" x-model="reminderText" placeholder="z.B. Angebot nachfassen..."
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button @click="saveReminder()" :disabled="!reminderDate"
+                        :class="reminderDate ? 'bg-petrol-500 hover:bg-petrol-600' : 'bg-gray-300 cursor-not-allowed'"
+                        class="flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors">
+                    Speichern
+                </button>
+                <button @click="clearReminder()" x-show="hasExisting"
+                        class="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors">
+                    Löschen
+                </button>
+                <button @click="showModal = false"
+                        class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">
+                    Abbrechen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-16 text-center fade-up delay-2">
+    <div class="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+    </div>
+    <p class="text-gray-500 text-sm font-medium">Keine Kontakte gefunden</p>
+    {% if search or status_filter or land_filter %}
+    <a href="{{ url_for('contacts') }}" class="text-petrol-600 hover:text-petrol-600 text-sm font-semibold mt-3 inline-block">Filter zurücksetzen</a>
+    {% else %}
+    <a href="{{ url_for('contact_new') }}" class="text-petrol-600 hover:text-petrol-600 text-sm font-semibold mt-3 inline-block">Ersten Kontakt erstellen</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleGemeinnuetzig(contactId, event) {
+    const btn = event.currentTarget;
+    const knob = btn.querySelector('span');
+    const isActive = btn.classList.contains('bg-emerald-500');
+
+    btn.classList.toggle('bg-emerald-500', !isActive);
+    btn.classList.toggle('bg-gray-200', isActive);
+    knob.classList.toggle('translate-x-[14px]', !isActive);
+    knob.classList.toggle('translate-x-[3px]', isActive);
+    btn.title = !isActive ? 'Gemeinnützig: Ja' : 'Gemeinnützig: Nein';
+
+    fetch(`/contacts/${contactId}/gemeinnuetzig`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => { if (!r.ok) window.location.reload(); });
+}
+
+function contactsManager() {
+    return {
+        selectedIds: [],
+        bulkStatus: '',
+        toggleSelect(id, e) {
+            if (e.target.checked) { this.selectedIds.push(id); }
+            else { this.selectedIds = this.selectedIds.filter(i => i !== id); }
+        },
+        toggleAll(e) {
+            const cbs = document.querySelectorAll('.bulk-cb');
+            if (e.target.checked) {
+                this.selectedIds = [];
+                cbs.forEach(c => { c.checked = true; this.selectedIds.push(parseInt(c.value)); });
+            } else {
+                this.selectedIds = [];
+                cbs.forEach(c => c.checked = false);
+            }
+        },
+        applyBulkStatus() {
+            if (!this.bulkStatus || this.selectedIds.length === 0) return;
+            fetch('/contacts/bulk-status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: this.selectedIds, status: this.bulkStatus })
+            }).then(r => r.json()).then(d => { if (d.success) window.location.reload(); });
+        },
+
+        showModal: false,
+        contactId: null,
+        contactName: '',
+        reminderDate: '',
+        reminderText: '',
+        hasExisting: false,
+
+        openReminder(id, name, existingDate, existingText) {
+            this.contactId = id;
+            this.contactName = name;
+            this.reminderDate = existingDate || '';
+            this.reminderText = existingText || '';
+            this.hasExisting = !!existingDate;
+            this.showModal = true;
+        },
+        saveReminder() {
+            if (!this.reminderDate) return;
+            fetch(`/contacts/${this.contactId}/reminder`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ date: this.reminderDate, text: this.reminderText })
+            }).then(r => { if (r.ok) { this.showModal = false; window.location.reload(); } });
+        },
+        clearReminder() {
+            fetch(`/contacts/${this.contactId}/reminder`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ date: '', text: '' })
+            }).then(r => { if (r.ok) { this.showModal = false; window.location.reload(); } });
+        },
+
+        showStatusModal: false,
+        statusContactId: null,
+        statusContactName: '',
+        statusCurrent: '',
+        showLostReason: false,
+        lostReason: '',
+        modalY: 100,
+
+        openStatusChange(id, name, current, event) {
+            this.statusContactId = id;
+            this.statusContactName = name;
+            this.statusCurrent = current;
+            this.showLostReason = false;
+            this.lostReason = '';
+            this.modalY = event ? Math.max(10, event.clientY - 100) : 100;
+            this.showStatusModal = true;
+        },
+        selectStatus(newStatus) {
+            if (newStatus === this.statusCurrent) { this.showStatusModal = false; return; }
+            if (newStatus === 'lost') {
+                this.showLostReason = true;
+                return;
+            }
+            this.doStatusUpdate(newStatus, '');
+        },
+        confirmStatusChange() {
+            this.doStatusUpdate('lost', this.lostReason);
+        },
+        doStatusUpdate(status, reason) {
+            const body = { status };
+            if (reason) body.lost_reason = reason;
+            fetch(`/contacts/${this.statusContactId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).then(r => {
+                if (r.ok) { this.showStatusModal = false; window.location.reload(); }
+            });
+        },
+
+        showInteractionModal: false,
+        interactionContactId: null,
+        interactionContactName: '',
+        interactionDate: '',
+        interactionTyp: 'E-Mail',
+        interactionNotiz: '',
+        interactionSaving: false,
+        interactionDone: false,
+
+        openInteraction(id, name) {
+            this.interactionContactId = id;
+            this.interactionContactName = name;
+            this.interactionDate = new Date().toISOString().split('T')[0];
+            this.interactionTyp = 'Telefon';
+            this.interactionNotiz = '';
+            this.interactionSaving = false;
+            this.interactionDone = false;
+            this.showInteractionModal = true;
+        },
+        saveInteraction() {
+            if (!this.interactionTyp || this.interactionSaving) return;
+            this.interactionSaving = true;
+            fetch(`/contacts/${this.interactionContactId}/interactions/quick`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    datum: this.interactionDate,
+                    typ:   this.interactionTyp,
+                    notiz: this.interactionNotiz
+                })
+            }).then(r => r.json()).then(data => {
+                this.interactionSaving = false;
+                if (data.success) {
+                    this.interactionDone = true;
+                    setTimeout(() => { this.showInteractionModal = false; }, 900);
+                }
+            }).catch(() => { this.interactionSaving = false; });
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title if mode == 'page' else entry.name }} - Wiki - Stellwerk{% endblock %}
+
+{% block content %}
+
+{% if mode == 'page' %}
+
+<script>
+(function(){
+    var type='page', id={{ page.id }};
+    try {
+        var recent = JSON.parse(localStorage.getItem('stellwerk-wiki-recent') || '[]');
+        recent = recent.filter(function(r){ return !(r.type===type && r.id===id); });
+        recent.unshift({type:type, id:id});
+        localStorage.setItem('stellwerk-wiki-recent', JSON.stringify(recent.slice(0,8)));
+    } catch(e){}
+})();
+</script>
+<div class="max-w-3xl mx-auto">
+    
+    <div class="flex items-center justify-between mb-6 fade-up">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('wiki') }}" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+            </a>
+            <div>
+                <div class="flex items-center gap-2">
+                    {% if page.pinned %}
+                    <svg class="w-4 h-4 text-gold-500" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    {% endif %}
+                    <h1 class="font-headline text-xl font-bold text-gray-900 dark:text-white">{{ page.title }}</h1>
+                </div>
+                <div class="flex items-center gap-3 mt-0.5">
+                    {% if page.category %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">{{ page.category }}</span>
+                    {% endif %}
+                    <span class="text-[10px] text-gray-400">Aktualisiert {{ page.updated_at.strftime('%d.%m.%Y %H:%M') if page.updated_at }}</span>
+                </div>
+            </div>
+        </div>
+        {% if not erzeugt %}
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('wiki_page_edit', id=page.id) }}" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Bearbeiten</a>
+            <form action="{{ url_for('wiki_page_delete', id=page.id) }}" method="POST"
+                  x-data="{ confirm: false }" @submit.prevent="confirm ? $el.submit() : confirm = true">
+                <button type="submit" class="px-3 py-2 text-xs font-bold rounded-xl transition-colors"
+                        :class="confirm ? 'bg-red-600 text-white' : 'text-red-500 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20'"
+                        x-text="confirm ? 'Sicher?' : 'Löschen'" @click.away="confirm = false"></button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if erzeugt %}
+    <details class="bg-petrol-50/60 dark:bg-petrol-900/10 border border-petrol-200/60 dark:border-petrol-800/40 rounded-2xl p-4 mb-6 fade-up">
+        <summary class="text-xs font-bold text-petrol-700 dark:text-petrol-400 cursor-pointer">Erzeugt aus {{ erzeugt_quellen|length }} Quelle{{ 'n' if erzeugt_quellen|length != 1 }}. Bitte an der Quelle ändern, der nächste Füll-Lauf baut die Seite neu.</summary>
+        <ul class="space-y-0.5 mt-2">
+            {% for q in erzeugt_quellen %}
+            <li class="text-[11px] font-mono text-gray-600 dark:text-gray-400 break-all">{{ q.quelle_pfad }}</li>
+            {% endfor %}
+        </ul>
+    </details>
+    {% endif %}
+
+    
+    {% if erzeugt_html %}
+    
+    <style>
+        .wiki-md { font-size: .875rem; line-height: 1.65; }
+        .wiki-md h2 { font-family: Montserrat, sans-serif; font-size: 1.05rem; font-weight: 700; margin: 2rem 0 .75rem; padding-top: 1rem; border-top: 1px solid rgba(0,112,122,.15); color: #00707A; scroll-margin-top: 1rem; }
+        .wiki-md h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+        .wiki-md h3 { font-weight: 700; font-size: .9rem; margin: 1.25rem 0 .5rem; scroll-margin-top: 1rem; }
+        .wiki-md p { margin: .5rem 0; }
+        .wiki-md ul, .wiki-md ol { margin: .5rem 0 .5rem 1.25rem; }
+        .wiki-md ul { list-style: disc; }
+        .wiki-md ol { list-style: decimal; }
+        .wiki-md li { margin: .2rem 0; }
+        .wiki-md table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .8rem; }
+        .wiki-md th, .wiki-md td { text-align: left; vertical-align: top; padding: .4rem .6rem; border-bottom: 1px solid rgba(128,128,128,.2); }
+        .wiki-md th { font-weight: 700; background: rgba(0,112,122,.06); }
+        .wiki-md code { font-size: .78em; padding: .05rem .3rem; border-radius: .25rem; background: rgba(128,128,128,.12); word-break: break-all; }
+        .wiki-md strong { font-weight: 700; }
+        .wiki-toc ul { list-style: none; margin: 0; padding: 0; }
+        .wiki-toc ul ul { padding-left: .75rem; }
+        .wiki-toc a { display: block; padding: .2rem 0; font-size: .75rem; color: inherit; }
+        .wiki-toc a:hover { color: #00707A; }
+    </style>
+    <div class="flex flex-col lg:flex-row-reverse gap-6 mb-6 fade-up delay-1">
+        {% if erzeugt_toc %}
+        <nav class="wiki-toc lg:w-56 flex-shrink-0 lg:sticky lg:top-4 self-start bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-4 text-gray-600 dark:text-gray-300">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Inhalt</p>
+            {{ erzeugt_toc }}
+        </nav>
+        {% endif %}
+        <div class="wiki-md flex-1 min-w-0 bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 text-gray-700 dark:text-gray-300">{{ erzeugt_html }}</div>
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 mb-6 fade-up delay-1">
+        <div class="prose prose-sm dark:prose-invert max-w-none text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{{ page.content }}</div>
+    </div>
+    {% endif %}
+
+    
+    {% if page.file_links %}
+    <div class="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-5 fade-up delay-2">
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Verknüpfte Dateien</p>
+        <div class="space-y-2">
+            {% for fl in page.file_links %}
+            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl group cursor-pointer"
+                 data-path="{{ fl.file_path }}" onclick="navigator.clipboard.writeText(this.dataset.path); this.querySelector('.copy-hint').textContent='Kopiert!'; setTimeout(() => this.querySelector('.copy-hint').textContent='Pfad kopieren', 1500)">
+                <svg class="w-5 h-5 text-petrol-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">{{ fl.label }}</p>
+                    <p class="text-[10px] font-mono text-gray-400 truncate">{{ fl.file_path }}</p>
+                    {% if fl.description %}<p class="text-[10px] text-gray-500 mt-0.5">{{ fl.description }}</p>{% endif %}
+                </div>
+                <span class="copy-hint text-[9px] text-gray-400 group-hover:text-petrol-500 transition-colors flex-shrink-0">Pfad kopieren</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+
+<script>
+(function(){
+    var type='entry', id={{ entry.id }};
+    try {
+        var recent = JSON.parse(localStorage.getItem('stellwerk-wiki-recent') || '[]');
+        recent = recent.filter(function(r){ return !(r.type===type && r.id===id); });
+        recent.unshift({type:type, id:id});
+        localStorage.setItem('stellwerk-wiki-recent', JSON.stringify(recent.slice(0,8)));
+    } catch(e){}
+})();
+</script>
+
+{% set type_colors = {
+    'skill': 'bg-petrol-100 text-petrol-700 dark:bg-petrol-900/30 dark:text-petrol-400',
+    'agent': 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+    'command': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    'script': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+    'workflow': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+    'template': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+} %}
+{% set status_colors = {
+    'active': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    'draft': 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+    'deprecated': 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+} %}
+
+<div class="max-w-3xl mx-auto">
+    
+    <div class="flex items-center justify-between mb-6 fade-up">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('wiki', tab='entries') }}" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+            </a>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded {{ type_colors.get(entry.entry_type, 'bg-gray-100 text-gray-500') }}">{{ entry_types.get(entry.entry_type, entry.entry_type) }}</span>
+                    <h1 class="font-headline text-xl font-bold text-gray-900 dark:text-white">{{ entry.name }}</h1>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded {{ status_colors.get(entry.status, '') }}">{{ entry_statuses.get(entry.status, entry.status) }}</span>
+                </div>
+                <span class="text-[10px] text-gray-400">Aktualisiert {{ entry.updated_at.strftime('%d.%m.%Y %H:%M') if entry.updated_at }}</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('wiki_entry_edit', id=entry.id) }}" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Bearbeiten</a>
+            <form action="{{ url_for('wiki_entry_delete', id=entry.id) }}" method="POST"
+                  x-data="{ confirm: false }" @submit.prevent="confirm ? $el.submit() : confirm = true">
+                <button type="submit" class="px-3 py-2 text-xs font-bold rounded-xl transition-colors"
+                        :class="confirm ? 'bg-red-600 text-white' : 'text-red-500 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20'"
+                        x-text="confirm ? 'Sicher?' : 'Löschen'" @click.away="confirm = false"></button>
+            </form>
+        </div>
+    </div>
+
+    
+    <div class="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 mb-6 fade-up delay-1 space-y-5">
+        {% if entry.description %}
+        <div>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Beschreibung</p>
+            <p class="text-sm text-gray-700 dark:text-gray-300">{{ entry.description }}</p>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-2 gap-4">
+            {% if entry.leistungsbereich %}
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Leistungsbereich</p>
+                <span class="text-xs font-semibold text-petrol-600 dark:text-petrol-400">{{ leistungsbereiche.get(entry.leistungsbereich, entry.leistungsbereich) }}</span>
+            </div>
+            {% endif %}
+            {% if entry.file_path %}
+            <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Hauptdatei/-ordner</p>
+                <p class="text-xs font-mono text-gray-600 dark:text-gray-400 break-all cursor-pointer hover:text-petrol-600 dark:hover:text-petrol-400 transition-colors"
+                   data-path="{{ entry.file_path }}" onclick="navigator.clipboard.writeText(this.dataset.path); this.textContent='Kopiert!'; setTimeout(() => this.textContent=this.dataset.path, 1500)">{{ entry.file_path }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if entry.trigger_phrases %}
+        <div>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Trigger-Phrasen</p>
+            <div class="flex flex-wrap gap-1.5">
+                {% for tp in entry.trigger_phrases.split(',') %}
+                <span class="text-[10px] px-2 py-0.5 bg-petrol-50 dark:bg-petrol-900/20 text-petrol-600 dark:text-petrol-400 rounded-lg font-medium">{{ tp.strip() }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if entry.example_call %}
+        <div>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Beispiel-Aufruf</p>
+            <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl">
+                <code class="text-xs font-mono text-petrol-600 dark:text-petrol-400">{{ entry.example_call }}</code>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if entry.notes %}
+        <div>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Notizen</p>
+            <div class="prose prose-sm dark:prose-invert max-w-none text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{{ entry.notes }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    
+    {% if entry.file_links %}
+    <div class="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-5 fade-up delay-2">
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Verknüpfte Dateien</p>
+        <div class="space-y-2">
+            {% for fl in entry.file_links %}
+            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl group cursor-pointer"
+                 data-path="{{ fl.file_path }}" onclick="navigator.clipboard.writeText(this.dataset.path); this.querySelector('.copy-hint').textContent='Kopiert!'; setTimeout(() => this.querySelector('.copy-hint').textContent='Pfad kopieren', 1500)">
+                <svg class="w-5 h-5 text-petrol-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">{{ fl.label }}</p>
+                    <p class="text-[10px] font-mono text-gray-400 truncate">{{ fl.file_path }}</p>
+                    {% if fl.description %}<p class="text-[10px] text-gray-500 mt-0.5">{{ fl.description }}</p>{% endif %}
+                </div>
+                <span class="copy-hint text-[9px] text-gray-400 group-hover:text-petrol-500 transition-colors flex-shrink-0">Pfad kopieren</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

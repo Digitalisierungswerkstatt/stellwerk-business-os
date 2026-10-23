@@ -1,0 +1,1213 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Stellwerk{% endblock %}
+
+{% block content %}
+
+{% set avatar_colors = ['bg-petrol-500', 'bg-slate-500', 'bg-stone-500', 'bg-teal-600', 'bg-cyan-700', 'bg-petrol-700', 'bg-slate-600', 'bg-petrol-400'] %}
+
+
+{% set stage_colors = {
+    'new':         '#8899a8',
+    'contacted':   '#5b8db8',
+    'qualified':   '#c4a040',
+    'proposal':    '#7a6898',
+    'negotiation': '#b87840',
+    'won':         '#3a9070',
+    'lost':        '#b04858',
+    'on_hold':     '#94a3b8',
+} %}
+
+{% set stage_accents = {
+    'new':         'border-l-slate-300  dark:border-l-slate-600',
+    'contacted':   'border-l-blue-300   dark:border-l-blue-700',
+    'qualified':   'border-l-amber-300  dark:border-l-amber-700',
+    'proposal':    'border-l-violet-300 dark:border-l-violet-700',
+    'negotiation': 'border-l-orange-300 dark:border-l-orange-700',
+    'won':         'border-l-teal-400   dark:border-l-teal-600',
+    'lost':        'border-l-rose-300   dark:border-l-rose-700',
+    'on_hold':     'border-l-slate-400  dark:border-l-slate-500',
+} %}
+{% set stage_text = {
+    'new':         'text-slate-600',
+    'contacted':   'text-blue-700',
+    'qualified':   'text-amber-700',
+    'proposal':    'text-violet-700',
+    'negotiation': 'text-orange-700',
+    'won':         'text-teal-700',
+    'lost':        'text-rose-700',
+    'on_hold':     'text-slate-500',
+} %}
+
+
+<div class="mb-8 fade-up">
+    <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">
+        {% if hour < 12 %}Guten Morgen{% elif hour < 18 %}Guten Tag{% else %}Guten Abend{% endif %}
+    </h1>
+    <p class="text-sm text-gray-500 mt-1">
+        {{ today.strftime('%A, %d. %B %Y') }} &middot;
+        <span class="font-medium text-gray-700">{{ total_contacts }}</span> Kontakte &middot;
+        <span class="font-medium text-gray-700">{{ active_contacts }}</span> in aktiver Pipeline
+    </p>
+</div>
+
+{% if setup_hints %}
+<div class="mb-6 fade-up delay-1">
+    <div class="bg-petrol-50/40 rounded-2xl border border-petrol-100/60 p-4">
+        <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
+            <span class="text-sm font-bold text-petrol-700">Erste Schritte</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% for hint in setup_hints %}
+            <a href="{{ hint.url }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-petrol-200/60 text-xs font-semibold text-petrol-600 hover:bg-petrol-50 transition-colors">
+                {{ hint.text }} &rarr; {{ hint.action }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<div x-data="{ showConfig: false }" class="mb-4 fade-up delay-1">
+    <button @click="showConfig = !showConfig" class="text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"/></svg>
+        Widgets anpassen
+    </button>
+    <div x-show="showConfig" x-cloak x-transition class="mt-2 p-3 bg-white rounded-xl border border-gray-200/60 shadow-sm">
+        <p class="text-[11px] text-gray-400 mb-2">Sektionen ein-/ausblenden (wird in den Einstellungen unter "Dashboard-Widgets" gespeichert)</p>
+        <div class="flex flex-wrap gap-2">
+            {% set widget_ids = ['perioden', 'heute', 'cashflow', 'prognose', 'abrechnung_needs', 'dokumente', 'mrr', 'retainer', 'pipeline', 'stille', 'kapazitaet', 'umsatz'] %}
+            {% set widget_labels = {'perioden': 'Perioden-Rückblick', 'heute': 'Fokus-Karte', 'cashflow': 'Cashflow', 'prognose': 'Umsatz-Hochrechnung', 'abrechnung_needs': 'Abrechnung nötig', 'dokumente': 'Dokumente', 'mrr': 'MRR & Proposals', 'retainer': 'Retainer-Abrechnung', 'pipeline': 'Lebende Pipeline', 'stille': 'Stille Kunden', 'kapazitaet': 'Kapazität', 'umsatz': 'Umsatz-Chart'} %}
+            {% for wid in widget_ids %}
+            <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all
+                {{ 'bg-gray-100 text-gray-400 line-through' if wid in hidden_widgets else 'bg-petrol-50 text-petrol-600' }}">
+                <input type="checkbox" class="w-3 h-3 rounded border-gray-300 text-petrol-500 focus:ring-petrol-500/20"
+                       {{ '' if wid in hidden_widgets else 'checked' }}
+                       onchange="toggleWidget('{{ wid }}', this.checked)">
+                {{ widget_labels[wid] }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+{% for wid in hidden_widgets %}
+.dash-widget-{{ wid }} { display: none !important; }
+{% endfor %}
+</style>
+<script>
+function toggleWidget(id, visible) {
+    fetch('/api/dashboard-widgets', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({widget: id, visible: visible})
+    }).then(() => window.location.reload());
+}
+</script>
+
+
+<div class="mb-6 fade-up delay-1 dash-widget-perioden">
+    <div class="flex items-center gap-3 mb-3">
+        <h2 class="text-sm font-bold text-gray-900">Perioden-Rückblick</h2>
+        <form method="GET" class="flex gap-1">
+            <button type="submit" name="periode" value="monat"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if dash_periode == 'monat' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Monat</button>
+            <button type="submit" name="periode" value="quartal"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if dash_periode == 'quartal' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Quartal</button>
+            <button type="submit" name="periode" value="jahr"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if dash_periode == 'jahr' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Jahr</button>
+            {% if dash_periode %}
+            <a href="{{ url_for('dashboard') }}" class="px-2.5 py-1 text-[11px] text-gray-400 hover:text-gray-600 font-medium transition-colors flex items-center">Zurücksetzen</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if dash_periode %}
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Neue Kontakte</p>
+            <p class="text-xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ dash_new_contacts }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gewonnen</p>
+            <p class="text-xl font-extrabold text-emerald-600 tabular-nums mt-0.5">{{ dash_won_count }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Verloren</p>
+            <p class="text-xl font-extrabold text-red-500 tabular-nums mt-0.5">{{ dash_lost_count }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider" title="Summe deal_value der gewonnenen Kontakte, kein Umsatz">Auftragswert (Won)</p>
+            <p class="text-xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ dash_won_value|format_euro }} €</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fakturiert</p>
+            <p class="text-xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ dash_revenue|format_euro }} €</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">bezahlt netto</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Zeitaufwand</p>
+            <p class="text-xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ format_minutes(dash_time_minutes) }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-3.5 hover:shadow-md transition-shadow">
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Interaktionen</p>
+            <p class="text-xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ dash_interactions }}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">{{ dash_period_label }}</p>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-xs text-gray-400">Wähle einen Zeitraum für den Rückblick</p>
+    {% endif %}
+</div>
+
+<div class="dash-widget-heute">
+
+{% set overdue_count = overdue_reminders|length %}
+{% set today_count   = today_reminders|length %}
+{% set overdue_tasks = [] %}
+{% for t in open_tasks %}{% if t.due_date and t.due_date <= today %}{% set _ = overdue_tasks.append(t) %}{% endif %}{% endfor %}
+{% set overdue_pay_count = overdue_payments|length if overdue_payments else 0 %}
+{% set expiring_quote_count = expiring_quotes|length if expiring_quotes else 0 %}
+{% set urgent_total  = overdue_count + today_count + overdue_tasks|length + overdue_pay_count + expiring_quote_count %}
+
+{% if urgent_total > 0 %}
+<div class="mb-6 fade-up delay-1">
+    <div class="bg-white rounded-2xl border border-gray-200/60 border-l-[3px] {{ 'border-l-red-500' if overdue_count > 0 else 'border-l-amber-400' }} shadow-sm p-4">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-gray-900">Heute</h2>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full {{ 'bg-red-100 text-red-600' if overdue_count > 0 else 'bg-amber-50 text-amber-600' }}">{{ urgent_total }} offen</span>
+            </div>
+            <span class="text-[11px] text-gray-400">{{ today.strftime('%d. %B') }}</span>
+        </div>
+        <div class="space-y-2.5">
+            
+            {% if overdue_count > 0 %}
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 px-1">
+                    <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-red-600 uppercase tracking-wider">{{ overdue_count }} Erinnerung{{ 'en' if overdue_count != 1 else '' }} überfällig</span>
+                </div>
+                {% for c in overdue_reminders %}
+                <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-red-200">
+                    <a href="{{ url_for('contact_view', id=c.id) }}" class="flex-1 min-w-0 hover:underline">
+                        <span class="text-xs font-semibold text-red-700 truncate block">{{ c.display_name }}</span>
+                        <span class="text-[10px] text-gray-500">{{ c.erinnerung.strftime('%d.%m.') }}{% if c.erinnerungstext %} — {{ c.erinnerungstext[:40] }}{% endif %}</span>
+                    </a>
+                    <form action="{{ url_for('reminder_complete', id=c.id) }}" method="POST" class="flex-shrink-0"
+                          x-data="{ confirm: false }"
+                          @submit.prevent="confirm ? $el.submit() : confirm = true">
+                        <button type="submit" class="px-2 py-1 text-[10px] font-bold rounded-lg transition-colors"
+                                :class="confirm ? 'text-white bg-red-600 border border-red-600 hover:bg-red-700' : 'text-red-600 bg-white border border-red-200 hover:bg-red-50'"
+                                x-text="confirm ? 'Sicher?' : 'Erledigt'"
+                                @click.away="confirm = false"
+                                title="Erinnerung erledigen"></button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if today_count > 0 %}
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 px-1">
+                    <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">{{ today_count }} heute fällig</span>
+                </div>
+                {% for c in today_reminders %}
+                <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-amber-300">
+                    <a href="{{ url_for('contact_view', id=c.id) }}" class="flex-1 min-w-0 hover:underline">
+                        <span class="text-xs font-semibold text-gray-800 truncate block">{{ c.display_name }}</span>
+                        {% if c.erinnerungstext %}<span class="text-[10px] text-gray-500">{{ c.erinnerungstext[:50] }}</span>{% endif %}
+                    </a>
+                    <form action="{{ url_for('reminder_complete', id=c.id) }}" method="POST" class="flex-shrink-0"
+                          x-data="{ confirm: false }"
+                          @submit.prevent="confirm ? $el.submit() : confirm = true">
+                        <button type="submit" class="px-2 py-1 text-[10px] font-bold rounded-lg transition-colors"
+                                :class="confirm ? 'text-white bg-amber-600 border border-amber-600 hover:bg-amber-700' : 'text-amber-700 bg-white border border-amber-300 hover:bg-amber-50'"
+                                x-text="confirm ? 'Sicher?' : 'Erledigt'"
+                                @click.away="confirm = false"
+                                title="Erinnerung erledigen"></button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if overdue_tasks %}
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 px-1">
+                    <svg class="w-3.5 h-3.5 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-.98.626-1.813 1.5-2.122"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-petrol-600 uppercase tracking-wider">{{ overdue_tasks|length }} Aufgabe{{ 'n' if overdue_tasks|length != 1 else '' }} fällig</span>
+                </div>
+                {% for t in overdue_tasks %}
+                <a href="{{ url_for('board_task_view', id=t.id) }}" class="flex items-center justify-between gap-2 px-3 py-2 bg-petrol-50/60 rounded-xl border border-petrol-100/80 hover:bg-petrol-100/50 transition-colors">
+                    <div class="min-w-0">
+                        <span class="text-xs font-semibold text-petrol-700 truncate block">{{ t.title }}</span>
+                        <span class="text-[10px] text-petrol-500">{{ t.due_date.strftime('%d.%m.') }}{% if t.contact %} — {{ t.contact.display_name }}{% endif %}</span>
+                    </div>
+                    <svg class="w-3.5 h-3.5 text-petrol-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if overdue_pay_count > 0 %}
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 px-1">
+                    <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-red-600 uppercase tracking-wider">{{ overdue_pay_count }} Zahlung{{ 'en' if overdue_pay_count != 1 else '' }} überfällig</span>
+                </div>
+                {% for p in overdue_payments %}
+                <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-red-200">
+                    <div class="min-w-0">
+                        <span class="text-xs font-semibold text-gray-800 truncate block">{{ p.contact.display_name if p.contact else 'Unbekannt' }}</span>
+                        <span class="text-[10px] text-gray-500">{{ p.expected_date.strftime('%d.%m.') }} — {{ p.label[:40] }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <span class="text-xs font-bold text-red-600 tabular-nums">&euro; {{ '{:,.2f}'.format(p.amount|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                        <form action="{{ url_for('payment_update_status', id=p.id) }}" method="POST">
+                            <input type="hidden" name="status" value="received">
+                            <button type="submit" class="px-2 py-1 text-[10px] font-bold text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors" title="Als eingegangen markieren">Eingegangen</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if expiring_quotes %}
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 px-1">
+                    <svg class="w-3.5 h-3.5 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-gray-600 uppercase tracking-wider">{{ expiring_quotes|length }} Angebot{{ 'e' if expiring_quotes|length != 1 else '' }} laufen bald ab</span>
+                </div>
+                {% for q in expiring_quotes %}
+                {% set days_left = (q.valid_until - today).days %}
+                <a href="{{ url_for('document_view', id=q.id) }}" class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                    <div class="min-w-0">
+                        <span class="text-xs font-semibold text-gray-700 truncate block">{{ q.number }} — {{ q.contact.display_name if q.contact else '' }}</span>
+                        <span class="text-[10px] text-gray-500">noch {{ days_left }} Tag{{ 'e' if days_left != 1 else '' }}</span>
+                    </div>
+                    <svg class="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+            
+            <div class="flex items-center justify-end gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
+                <a href="{{ url_for('contact_new') }}"
+                   class="inline-flex items-center gap-1 px-3 py-2 bg-gray-50 rounded-xl border border-gray-200/60 text-xs font-semibold text-gray-500 hover:bg-petrol-50 hover:text-petrol-600 hover:border-petrol-200 transition-all">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Kontakt
+                </a>
+                <a href="{{ url_for('timetracking') }}"
+                   class="inline-flex items-center gap-1 px-3 py-2 bg-gray-50 rounded-xl border border-gray-200/60 text-xs font-semibold text-gray-500 hover:bg-petrol-50 hover:text-petrol-600 hover:border-petrol-200 transition-all">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Zeit
+                </a>
+            </div>
+    </div>
+</div>
+{% else %}
+<div class="mb-6 fade-up delay-1">
+    <div class="flex items-center gap-3 px-5 py-3.5 bg-petrol-50/40 rounded-2xl border border-petrol-100/60">
+        <svg class="w-4 h-4 text-petrol-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p class="text-sm font-medium text-petrol-700">Heute sieht ruhig aus — keine offenen Erinnerungen oder fälligen Aufgaben.</p>
+        <div class="ml-auto flex items-center gap-1.5 flex-shrink-0">
+            <a href="{{ url_for('contact_new') }}"
+               class="inline-flex items-center gap-1 px-3 py-1.5 bg-white rounded-xl border border-petrol-200/60 text-xs font-semibold text-petrol-600 hover:bg-petrol-50 transition-all">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Kontakt anlegen
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% if followup_created > 0 %}
+<div class="mb-6 fade-up delay-1" x-data="{ show: true }" x-show="show"
+     x-transition:leave="transition ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+    <div class="flex items-center gap-3 px-5 py-3.5 bg-petrol-50/80 rounded-2xl border border-petrol-200/60 ring-1 ring-inset ring-petrol-500/10">
+        <div class="w-8 h-8 rounded-xl bg-petrol-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-petrol-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-semibold text-petrol-900">{{ followup_created }} Follow-Up{{ 's' if followup_created > 1 else '' }} erstellt</p>
+            <p class="text-[11px] text-petrol-600">Automatisch generierte Aufgaben für Kontakte ohne aktuelle Interaktion</p>
+        </div>
+        <a href="{{ url_for('tasks') }}" class="px-3 py-1.5 bg-petrol-500 text-white text-[11px] font-bold rounded-lg hover:bg-petrol-600 transition-colors flex-shrink-0">Anzeigen</a>
+        <button @click="show = false" class="text-petrol-400 hover:text-petrol-600 transition-colors flex-shrink-0">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+    </div>
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-dokumente">
+
+{% if open_quote_count > 0 or open_invoice_count > 0 or expiring_quotes %}
+<div class="mb-6 fade-up delay-1">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Dokumente</h2>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {% if open_quote_count > 0 %}
+            <a href="{{ url_for('documents', tab='quotes', status='open') }}" class="p-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                <p class="text-[11px] font-bold text-petrol-500 uppercase tracking-wider">Offene Angebote</p>
+                <p class="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">{{ '{:,.0f}'.format(open_quote_sum).replace(',', '.') }} &euro;</p>
+                <p class="text-[11px] text-gray-500">{{ open_quote_count }} Angebot{{ 'e' if open_quote_count != 1 else '' }}</p>
+            </a>
+            {% endif %}
+            {% if open_invoice_count > 0 %}
+            <a href="{{ url_for('documents', tab='invoices', status='open') }}" class="p-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                <p class="text-[11px] font-bold text-petrol-500 uppercase tracking-wider">Offene Rechnungen</p>
+                <p class="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">{{ '{:,.0f}'.format(open_invoice_sum).replace(',', '.') }} &euro;</p>
+                <p class="text-[11px] text-gray-500">{{ open_invoice_count }} Rechnung{{ 'en' if open_invoice_count != 1 else '' }}</p>
+            </a>
+            {% endif %}
+            {% if overdue_invoice_count > 0 %}
+            <a href="{{ url_for('documents', tab='invoices', status='overdue') }}" class="p-3 bg-white rounded-xl border border-red-200 hover:bg-red-50 transition-colors">
+                <p class="text-[11px] font-bold text-red-600 uppercase tracking-wider">Überfällig</p>
+                <p class="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">{{ '{:,.0f}'.format(overdue_invoice_sum).replace(',', '.') }} &euro;</p>
+                <p class="text-[11px] text-gray-500">{{ overdue_invoice_count }} Rechnung{{ 'en' if overdue_invoice_count != 1 else '' }}</p>
+            </a>
+            {% endif %}
+            {% if expiring_quotes %}
+            <div class="p-3 bg-white rounded-xl border border-gray-200">
+                <p class="text-[11px] font-bold text-petrol-500 uppercase tracking-wider">Laufen bald ab</p>
+                <div class="mt-1 space-y-1">
+                    {% for q in expiring_quotes[:3] %}
+                    <a href="{{ url_for('document_view', id=q.id) }}" class="block text-xs text-gray-700 hover:text-petrol-600 transition-colors truncate">
+                        {{ q.number }} · {{ q.contact.display_name }} <span class="text-gray-400">({{ (q.valid_until - today).days }}d)</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-mrr">
+
+{% if mrr_total > 0 or stale_proposals %}
+<div class="grid grid-cols-1 {{ 'lg:grid-cols-2' if mrr_total > 0 and stale_proposals else '' }} gap-4 mb-6 fade-up delay-2">
+    {% if mrr_total > 0 %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Wiederkehrender Umsatz (MRR)</h2>
+        </div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-3xl font-extrabold text-emerald-600 tabular-nums">{{ mrr_total|format_euro }} €</span>
+            <span class="text-sm text-gray-400">/Monat</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-1">{{ mrr_client_count }} Kunde{{ 'n' if mrr_client_count != 1 else '' }} &middot; {{ (mrr_total * 12)|format_euro }} € ARR</p>
+    </div>
+    {% endif %}
+
+    {% if stale_proposals %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 border-l-[3px] border-l-amber-400 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Angebote ohne Reaktion</h2>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">{{ stale_proposals|length }}</span>
+        </div>
+        <div class="space-y-2">
+            {% for sp in stale_proposals[:5] %}
+            <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-amber-50/50 transition-all duration-200 group">
+                <a href="{{ url_for('document_view', id=sp.doc.id) }}" class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-gray-700 group-hover:text-petrol-600 truncate transition-colors">{{ sp.contact.display_name }}</p>
+                    <p class="text-[11px] text-gray-400 truncate">{{ sp.doc.number }} &middot; {{ sp.doc.subject[:40] }}{{ '...' if sp.doc.subject|length > 40 else '' }}</p>
+                </a>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <div class="text-right">
+                        <span class="text-sm font-bold text-amber-600 tabular-nums">{{ sp.days }} Tage</span>
+                        <p class="text-[11px] text-gray-400 tabular-nums">{{ sp.value|format_euro }} €</p>
+                    </div>
+                    {% if sp.contact.primary_email %}
+                    <a href="{{ url_for('contact_email', id=sp.contact.id) }}" title="Nachfassen"
+                       class="px-2 py-1 text-[10px] font-bold text-amber-600 bg-white border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Mail</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-retainer">
+
+{% if retainer_billing_due %}
+<div class="mb-6 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 border-l-[3px] border-l-petrol-400 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Retainer-Abrechnung fällig</h2>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-petrol-50 text-petrol-600">{{ retainer_billing_due|length }}</span>
+        </div>
+        <div class="space-y-2">
+            {% for rb in retainer_billing_due %}
+            <div class="flex items-center justify-between p-2.5 rounded-xl hover:bg-petrol-50/50 transition-all duration-200">
+                <a href="{{ url_for('contact_view', id=rb.contact.id) }}" class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-gray-700 hover:text-petrol-600 transition-colors">{{ rb.contact.display_name }}</p>
+                    <p class="text-[11px] text-gray-400">{{ rb.retainer.name }} &middot; {{ rb.months_since }} Monate seit letzter Abrechnung</p>
+                </a>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <span class="text-sm font-bold text-petrol-600 tabular-nums">{{ rb.expected_amount|format_euro }} €</span>
+                    <button onclick="event.preventDefault(); fetch('/api/retainers/{{ rb.retainer.id }}/bill', {method:'POST',headers:{'Content-Type':'application/json'}}).then(r=>r.json()).then(d=>{if(d.success)window.location.reload();})"
+                            class="px-2 py-1 text-[10px] font-bold text-petrol-600 bg-white border border-petrol-200 rounded-lg hover:bg-petrol-50 transition-colors" title="Rechnung generieren">
+                        Abrechnen
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-pipeline">
+
+<div class="mb-6 fade-up delay-2">
+    <a href="{{ url_for('documents') }}?type=quote" class="block bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+                </div>
+                <h2 class="text-sm font-bold text-gray-900">Lebende Pipeline</h2>
+            </div>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-petrol-50 text-petrol-600">{{ pipeline.count }}</span>
+        </div>
+        <p class="text-2xl font-extrabold text-gray-900 tabular-nums">{{ '{:,.0f}'.format(pipeline.value_net).replace(',', '.') }} €</p>
+        <p class="text-[11px] text-gray-400 mt-1">{{ pipeline.count }} Angebot{{ '' if pipeline.count == 1 else 'e' }} beim Kunden, noch gültig</p>
+    </a>
+</div>
+</div>
+<div class="dash-widget-stille">
+
+{% if silent_clients %}
+<div class="mb-6 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 border-l-[3px] border-l-gold shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-gold-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Stille Kunden</h2>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gold-50 text-gold">{{ silent_clients|length }}</span>
+            <span class="text-[11px] text-gray-400 font-normal">Gewonnene Kunden ohne Aktivität seit 30+ Tagen</span>
+        </div>
+        <div class="space-y-2">
+            {% for sc in silent_clients[:5] %}
+            <a href="{{ url_for('contact_view', id=sc.contact.id) }}"
+               class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gold-50/50 transition-all duration-200 group">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-gold-100 flex items-center justify-center flex-shrink-0">
+                        <span class="text-gold text-[10px] font-bold">{{ sc.contact.display_name[0:2]|upper }}</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 group-hover:text-petrol-600 transition-colors">{{ sc.contact.display_name }}</p>
+                        <p class="text-[11px] text-gray-400">Letzte Aktivität: {{ sc.last_activity.strftime('%d.%m.%Y') }}</p>
+                    </div>
+                </div>
+                <span class="text-sm font-bold text-gold tabular-nums">{{ sc.days_silent }} Tage</span>
+            </a>
+            {% endfor %}
+            {% if silent_clients|length > 5 %}
+            <p class="text-[11px] text-gray-400 text-center pt-1">+ {{ silent_clients|length - 5 }} weitere</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-kapazitaet">
+
+{% if capacity.worked > 0 or capacity.retainer_reserved > 0 %}
+<div class="mb-6 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Auslastung diese Woche</h2>
+        </div>
+        <div class="flex items-center gap-4 mb-2">
+            <div class="flex-1 h-5 bg-gray-100 rounded-lg overflow-hidden relative">
+                
+                {% if capacity.retainer_reserved > 0 %}
+                <div class="absolute h-full bg-petrol-100/60 rounded-lg" style="width: {{ (capacity.retainer_reserved / capacity.target * 100)|round|int }}%"></div>
+                {% endif %}
+                
+                <div class="relative h-full rounded-lg transition-all duration-700
+                    {% if capacity.pct > 100 %}bg-red-400{% elif capacity.pct >= 80 %}bg-amber-400{% else %}bg-emerald-400{% endif %}"
+                     style="width: {{ [capacity.pct, 100]|min }}%">
+                </div>
+            </div>
+            <span class="text-sm font-bold tabular-nums {{ 'text-red-500' if capacity.pct > 100 else 'text-gray-900' }}">
+                {{ capacity.worked }}h / {{ capacity.target }}h
+            </span>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+            <span>{{ capacity.pct }}% ausgelastet</span>
+            {% if capacity.retainer_reserved > 0 %}
+            <span>&middot; {{ capacity.retainer_reserved }}h/Woche Retainer</span>
+            {% endif %}
+            {% if capacity.free > 0 %}
+            <span>&middot; {{ capacity.free }}h frei</span>
+            {% endif %}
+            <span>&middot; Letzte Woche: <span class="font-semibold text-gray-500">{{ capacity.last_week }}h</span></span>
+            <span>&middot; Ø 4 Wochen: <span class="font-semibold text-gray-500">{{ capacity.avg_4w }}h</span></span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% if capacity_projection and capacity_projection.months %}
+<div class="mb-6 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                </div>
+                <h2 class="text-sm font-bold text-gray-900">Kapazitäts-Vorschau (12 Monate)</h2>
+            </div>
+            <a href="{{ url_for('followup_settings') }}" class="text-[11px] font-semibold text-petrol-600 hover:text-petrol-700 transition-colors">Soll: {{ capacity_projection.weekly_target }}h/Woche</a>
+        </div>
+        <p class="text-[11px] text-gray-400 mb-4">
+            Verplante Retainer-Stunden gegen {{ capacity_projection.soll_h }}h/Monat Soll ({{ capacity_projection.weekly_target }}h/Woche reine Mandatsarbeit).
+            Aktuell <span class="font-bold {{ 'text-red-500' if capacity_projection.current_free_h < 0 else 'text-emerald-600' }}">{{ capacity_projection.current_free_h }}h/Monat frei</span>{% if capacity_projection.first_relief_month %}, mehr Platz ab {{ capacity_projection.first_relief_month }}{% endif %}.
+        </p>
+        <div class="flex items-end gap-1.5 h-28 relative">
+            
+            <div class="absolute inset-x-0 top-0 border-t border-dashed border-gray-300 pointer-events-none"></div>
+            {% for mo in capacity_projection.months %}
+            <div class="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+                <span class="text-[9px] font-bold tabular-nums {{ 'text-red-500' if mo.over else 'text-gray-400' }}">{{ mo.free_h }}</span>
+                <div class="w-full rounded-t-md transition-all duration-500
+                    {% if mo.over %}bg-red-400{% elif mo.pct >= 80 %}bg-amber-400{% else %}bg-petrol-300{% endif %}"
+                     style="height: {{ [mo.pct, 100]|min|round|int if mo.planned_h > 0 else 2 }}%; min-height: 2px;"
+                     title="{{ mo.label }}: {{ mo.planned_h }}h verplant, {{ mo.free_h }}h frei, {{ mo.pct }}% ausgelastet"></div>
+                <span class="text-[9px] text-gray-400 tabular-nums">{{ mo.label_short }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 mt-3">
+            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-petrol-300"></span>verplant</span>
+            <span class="inline-flex items-center gap-1"><span class="inline-block w-3 border-t border-dashed border-gray-400"></span>Soll {{ capacity_projection.soll_h }}h/Mo</span>
+            <span>&middot; Zahl &uuml;ber dem Balken = freie Std/Monat</span>
+            <span>&middot; Einmalprojekte (Festpreis) nicht enthalten</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+</div>
+<div class="dash-widget-umsatz">
+
+{% if monthly_revenue and monthly_revenue | sum(attribute='total') > 0 %}
+<div class="mb-6 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h2 class="text-sm font-bold text-gray-900">Umsatz (netto, bezahlt)</h2>
+            </div>
+            <a href="{{ url_for('documents', tab='invoices', status='done') }}" class="text-[11px] font-semibold text-petrol-600 hover:text-petrol-700 transition-colors">Alle Rechnungen</a>
+        </div>
+        <div class="flex items-end gap-2 h-24">
+            {% for m in monthly_revenue %}
+            <div class="flex-1 flex flex-col items-center gap-1">
+                <span class="text-[10px] font-bold text-gray-500 tabular-nums">{% if m.total > 0 %}{{ '{:,.0f}'.format(m.total).replace(',', '.') }}{% endif %}</span>
+                <div class="w-full rounded-t-md transition-all duration-500 {{ 'bg-emerald-400' if loop.last else 'bg-emerald-200' }}"
+                     style="height: {{ (m.total / max_revenue * 100) | int if m.total > 0 else 2 }}%{% if m.total == 0 %}; background-color: #e5e7eb{% endif %}; min-height: 2px;">
+                </div>
+                <span class="text-[10px] text-gray-400 font-medium">{{ m.month_short }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 fade-up delay-1">
+    <div class="dash-widget-cashflow bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-2">
+            <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Cashflow</h2>
+        </div>
+        {% if cashflow.total > 0 %}
+        <p class="text-2xl font-extrabold text-petrol-600 tabular-nums">{{ '{:,.0f}'.format(cashflow.total).replace(',', '.') }} €</p>
+        <p class="text-[11px] text-gray-400 mt-1">
+            {{ '{:,.0f}'.format(cashflow.open_gross).replace(',', '.') }} € offen gestellt &middot;
+            {{ '{:,.0f}'.format(cashflow.recurring_gross).replace(',', '.') }} €/Mo laufend (brutto)
+        </p>
+        {% else %}
+        <p class="text-2xl font-extrabold text-gray-300 tabular-nums">0 €</p>
+        <p class="text-[11px] text-gray-400 mt-1">nichts unterwegs</p>
+        {% endif %}
+    </div>
+    {% set up = umsatz_prognose %}
+    <div class="dash-widget-prognose bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300" x-data="{ open: false }">
+        <div class="flex items-center gap-2.5 mb-2">
+            <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Umsatz {{ up.year }} erwartet</h2>
+        </div>
+        <p class="text-2xl font-extrabold text-petrol-600 tabular-nums">{{ '{:,.0f}'.format(up.total).replace(',', '.') }} €</p>
+        <p class="text-[11px] text-gray-400 mt-1">
+            {% if up.plan %}
+            Plan {{ '{:,.0f}'.format(up.plan).replace(',', '.') }} € &middot;
+            <span class="{{ 'text-emerald-600' if up.delta >= 0 else 'text-red-500' }} font-semibold">{{ '+' if up.delta >= 0 else '−' }}{{ '{:,.0f}'.format(up.delta|abs).replace(',', '.') }} €</span>
+            {% else %}
+            kein Plan hinterlegt (Einstellungen)
+            {% endif %}
+            &middot; <button type="button" @click="open = !open" class="underline decoration-dotted hover:text-petrol-600">Herleitung</button>
+        </p>
+        <div x-show="open" x-cloak class="mt-2 text-[11px] text-gray-500 space-y-0.5 tabular-nums">
+            <div class="flex justify-between"><span>Fakturiert (Leistung {{ up.year }})</span><span>{{ '{:,.0f}'.format(up.ist).replace(',', '.') }} €</span></div>
+            <div class="flex justify-between"><span>Retainer bis Dezember</span><span>{{ '{:,.0f}'.format(up.retainer_rest).replace(',', '.') }} €</span></div>
+            {% for r in up.retainer_detail %}<div class="flex justify-between pl-3 text-gray-400"><span>{{ r.name|truncate(28) }} ({{ r.months }} Mo)</span><span>{{ '{:,.0f}'.format(r.amount).replace(',', '.') }} €</span></div>{% endfor %}
+            <div class="flex justify-between"><span>Gewonnene Projekte, Rest</span><span>{{ '{:,.0f}'.format(up.projekte_rest).replace(',', '.') }} €</span></div>
+            {% for p in up.projekt_detail %}<div class="flex justify-between pl-3 text-gray-400"><span>{{ p.name|truncate(28) }}</span><span>{{ '{:,.0f}'.format(p.amount).replace(',', '.') }} €</span></div>{% endfor %}
+            {% if up.erwartet_detail %}<div class="flex justify-between"><span>Erwartet, noch ohne Vertrag/Rechnung</span><span>{{ '{:,.0f}'.format(up.erwartet_rest).replace(',', '.') }} €</span></div>
+            {% for e in up.erwartet_detail %}<div class="flex justify-between pl-3 text-gray-400"><span>{{ e.name|truncate(28) }}{% if e.months %} ({{ e.months }} Mo){% endif %}</span><span>{{ '{:,.0f}'.format(e.amount).replace(',', '.') }} €</span></div>{% endfor %}{% endif %}
+        </div>
+    </div>
+    <a href="{{ url_for('abrechnung') }}" class="dash-widget-abrechnung_needs block bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-2.5 mb-2">
+            <div class="w-7 h-7 rounded-lg {{ 'bg-red-50' if abrechnung_klaeren else 'bg-gold-50' }} flex items-center justify-center">
+                <svg class="w-4 h-4 {{ 'text-red-500' if abrechnung_klaeren else 'text-gold' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>
+            </div>
+            <h2 class="text-sm font-bold text-gray-900">Abrechnung nötig</h2>
+        </div>
+        <p class="text-2xl font-extrabold tabular-nums {{ 'text-red-600' if abrechnung_klaeren else 'text-gray-900' }}">{{ abrechnung_klaeren }}<span class="text-sm font-medium text-gray-400"> klären</span></p>
+        <p class="text-[11px] text-gray-400 mt-1">{{ abrechnung_faellig }} Retainer fällig &middot; zum Cockpit</p>
+    </a>
+</div>
+
+
+{% if pipeline_value > 0 or won_value > 0 or total_time_value > 0 or expected_payments_total > 0 %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 fade-up delay-1">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-3 mb-1">
+            <div class="w-8 h-8 rounded-xl bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Pipeline-Wert</p>
+        </div>
+        <p class="text-xl font-extrabold text-gray-900 tabular-nums pl-11">{{ '{:,.0f}'.format(pipeline_value).replace(',', '.') }} €</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-3 mb-1">
+            <div class="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            </div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Gew. Forecast</p>
+        </div>
+        <p class="text-xl font-extrabold text-gray-900 tabular-nums pl-11">{{ '{:,.0f}'.format(weighted_forecast).replace(',', '.') }} €</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 border-l-[3px] border-l-teal-400">
+        <div class="flex items-center gap-3 mb-1">
+            <div class="w-8 h-8 rounded-xl bg-teal-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Gewonnen</p>
+        </div>
+        <p class="text-xl font-extrabold text-teal-700 tabular-nums pl-11">{{ '{:,.0f}'.format(won_value).replace(',', '.') }} €</p>
+    </div>
+</div>
+
+{% if total_time_value > 0 or expected_payments_total > 0 %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 fade-up delay-1">
+    {% if total_time_value > 0 %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 border-l-[3px] border-l-petrol-400">
+        <div class="flex items-center gap-3 mb-1">
+            <div class="w-8 h-8 rounded-xl bg-petrol-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Zeitwert (Stunden)</p>
+        </div>
+        <p class="text-xl font-extrabold text-petrol-700 tabular-nums pl-11">{{ '{:,.0f}'.format(total_time_value).replace(',', '.') }} €</p>
+    </div>
+    {% endif %}
+    {% if expected_payments_total > 0 %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 border-l-[3px] {% if overdue_payments %}border-l-red-400{% else %}border-l-emerald-400{% endif %}">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-8 h-8 rounded-xl {% if overdue_payments %}bg-red-50{% else %}bg-emerald-50{% endif %} flex items-center justify-center">
+                        <svg class="w-4 h-4 {% if overdue_payments %}text-red-500{% else %}text-emerald-500{% endif %}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Erw. Zahlungen (offen)</p>
+                </div>
+                <p class="text-xl font-extrabold {% if overdue_payments %}text-gray-900{% else %}text-emerald-700{% endif %} tabular-nums pl-11">{{ '{:,.0f}'.format(expected_payments_total).replace(',', '.') }} €</p>
+                <p class="text-[11px] text-gray-400 pl-11 mt-0.5">{{ upcoming_payments|length }} offene Zahlungen</p>
+            </div>
+            {% if overdue_payments %}
+            <div class="text-right">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-red-50 text-red-600 border border-red-200/60">
+                    {{ overdue_payments|length }} überfällig
+                </span>
+                <p class="text-[11px] text-red-500 font-semibold tabular-nums mt-0.5">{{ '{:,.0f}'.format(overdue_payments_total).replace(',', '.') }} €</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="mb-4"></div>
+{% endif %}
+{% endif %}
+
+
+{% set total_pipeline = stats.values()|sum if stats else 0 %}
+<div class="mb-8 fade-up delay-1">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-sm font-semibold text-gray-900">Pipeline-Übersicht</h2>
+            <span class="text-xs text-gray-400 tabular-nums">{{ total_pipeline }} gesamt</span>
+        </div>
+        {% if total_pipeline > 0 %}
+        <div class="space-y-2.5">
+            {% for stage_key, stage_name in stages %}
+            {% set count = stats.get(stage_key, 0) %}
+            {% set pct = (count / total_pipeline * 100)|round|int if total_pipeline > 0 else 0 %}
+            <div class="flex items-center gap-3 group">
+                <span class="text-[11px] font-medium text-gray-500 w-24 text-right truncate">{{ stage_name }}</span>
+                <div class="flex-1 h-6 bg-gray-100/70 rounded-md overflow-hidden relative">
+                    <div class="h-full rounded-md transition-all duration-700 ease-out flex items-center"
+                         style="width: {{ [pct, 3]|max if count > 0 else 0 }}%; background: {{ stage_colors[stage_key] }}; opacity: 0.85;"
+                         x-data x-init="$el.style.width='0%'; setTimeout(() => $el.style.width='{{ [pct, 3]|max if count > 0 else 0 }}%', 100)">
+                        {% if count > 0 %}
+                        <span class="text-[10px] font-bold text-white px-2 tabular-nums drop-shadow-sm">{{ count }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <span class="text-[11px] tabular-nums text-gray-400 w-8 text-right">{{ pct }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 text-center py-4">Noch keine Kontakte in der Pipeline</p>
+        {% endif %}
+    </div>
+</div>
+
+
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+    {% for stage_key, stage_name in stages %}
+    <a href="{{ url_for('contacts', status=stage_key) }}"
+       class="group relative bg-white rounded-xl border border-gray-200/60 border-l-[3px] {{ stage_accents[stage_key] }} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 fade-up delay-{{ loop.index }}">
+        <div class="text-2xl font-extrabold tabular-nums text-gray-800"
+             x-data="counter({{ stats.get(stage_key, 0) }})" x-text="display">0</div>
+        <div class="text-[11px] font-medium text-gray-500 mt-0.5">{{ stage_name }}</div>
+    </a>
+    {% endfor %}
+</div>
+
+
+{% if conversion_rates %}
+<div class="mb-8 fade-up delay-2">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <h2 class="text-sm font-semibold text-gray-900 mb-3">Conversion Rates</h2>
+        <div class="flex flex-wrap gap-2">
+            {% for cr in conversion_rates %}
+            {% if cr.rate > 0 %}
+            <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg">
+                <span class="text-[11px] font-medium text-gray-500">{{ cr.from_label }}</span>
+                <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                <span class="text-[11px] font-medium text-gray-500">{{ cr.to_label }}</span>
+                <span class="text-[11px] font-bold
+                    {% if cr.rate >= 50 %}text-teal-600{% elif cr.rate >= 25 %}text-gold{% else %}text-gray-500{% endif %} ml-1">{{ cr.rate }}%</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-3">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a6 6 0 00-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 00.515 1.076 32.91 32.91 0 003.256.508 3.5 3.5 0 006.972 0 32.903 32.903 0 003.256-.508.75.75 0 00.515-1.076A11.448 11.448 0 0116 8a6 6 0 00-6-6z" clip-rule="evenodd"/></svg>
+                </div>
+                <h2 class="font-semibold text-sm text-gray-900">Erinnerungen</h2>
+            </div>
+            {% set reminder_count = (overdue_reminders|length) + (today_reminders|length) %}
+            {% if reminder_count %}
+            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-500/90 text-white tabular-nums">{{ reminder_count }}</span>
+            {% endif %}
+        </div>
+        <div class="p-4 space-y-1.5 max-h-80 overflow-y-auto">
+
+            
+            {% for contact in today_reminders %}
+            <div class="flex items-start gap-3 p-2.5 pr-3 rounded-xl border-l-[3px] border-amber-400 bg-amber-50/50 hover:bg-amber-50 transition-all duration-200 group">
+                <form action="{{ url_for('reminder_complete', id=contact.id) }}" method="POST" class="flex-shrink-0 mt-0.5">
+                    <button type="submit" class="w-[18px] h-[18px] rounded-[5px] border-2 border-amber-400 hover:border-petrol-500 hover:bg-petrol-50 transition-all duration-200 flex items-center justify-center group/btn" title="Erledigt">
+                        <svg class="w-2.5 h-2.5 text-petrol-500 opacity-0 group-hover/btn:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    </button>
+                </form>
+                <a href="{{ url_for('contact_view', id=contact.id) }}" class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ contact.display_name }}</p>
+                    <p class="text-xs text-amber-700 mt-0.5">Heute · {{ contact.erinnerungstext or 'Erinnerung' }}</p>
+                </a>
+            </div>
+            {% endfor %}
+
+            
+            {% for contact in overdue_reminders %}
+            <div class="flex items-start gap-3 p-2.5 pr-3 rounded-xl border-l-[3px] border-red-500 bg-red-50/70 hover:bg-red-50 transition-all duration-200 group">
+                <form action="{{ url_for('reminder_complete', id=contact.id) }}" method="POST" class="flex-shrink-0 mt-0.5">
+                    <button type="submit" class="w-[18px] h-[18px] rounded-[5px] border-2 border-red-400 hover:border-petrol-500 hover:bg-petrol-50 transition-all duration-200 flex items-center justify-center group/btn" title="Erledigt">
+                        <svg class="w-2.5 h-2.5 text-petrol-500 opacity-0 group-hover/btn:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    </button>
+                </form>
+                <a href="{{ url_for('contact_view', id=contact.id) }}" class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <p class="text-sm font-semibold text-red-800 truncate">{{ contact.display_name }}</p>
+                        <span class="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded flex-shrink-0">ÜBERFÄLLIG</span>
+                    </div>
+                    <p class="text-xs text-red-600 mt-0.5">{{ contact.erinnerung.strftime('%d.%m.%Y') }} · {{ contact.erinnerungstext or 'Erinnerung' }}</p>
+                </a>
+            </div>
+            {% endfor %}
+
+            
+            {% for contact in upcoming_reminders %}
+            <div class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50/80 transition-all duration-200 group">
+                <form action="{{ url_for('reminder_complete', id=contact.id) }}" method="POST" class="flex-shrink-0 mt-0.5">
+                    <button type="submit" class="w-[18px] h-[18px] rounded-[5px] border-2 border-gray-300 hover:border-petrol-500 hover:bg-petrol-50 transition-all duration-200 flex items-center justify-center group/btn" title="Erledigt">
+                        <svg class="w-2.5 h-2.5 text-petrol-500 opacity-0 group-hover/btn:opacity-100 transition-opacity" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    </button>
+                </form>
+                <a href="{{ url_for('contact_view', id=contact.id) }}" class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ contact.display_name }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ contact.erinnerung.strftime('%d.%m.%Y') }} · {{ contact.erinnerungstext or 'Erinnerung' }}</p>
+                </a>
+            </div>
+            {% endfor %}
+
+            {% if not overdue_reminders and not today_reminders and not upcoming_reminders %}
+            <div class="py-8 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+                </div>
+                <p class="text-sm text-gray-400 font-medium">Keine Erinnerungen</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-4">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-petrol-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 4.75A.75.75 0 016.75 4h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 4.75zM6 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 10zm0 5.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75a.75.75 0 01-.75-.75zM1.99 4.75a1 1 0 011-1h.01a1 1 0 010 2h-.01a1 1 0 01-1-1zM3 10a1 1 0 00-1.01-1h-.01a1 1 0 100 2h.01A1 1 0 003 10zm-1.01 4.25a1 1 0 011-1h.01a1 1 0 110 2h-.01a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+                </div>
+                <h2 class="font-semibold text-sm text-gray-900">To Do</h2>
+            </div>
+            <a href="{{ url_for('board') }}" class="text-xs font-semibold text-petrol-600 hover:text-petrol-700 transition-colors">Board</a>
+        </div>
+        <div class="p-4 max-h-80 overflow-y-auto">
+            {% if open_tasks %}
+            <ul class="space-y-1">
+                {% for task in open_tasks %}
+                <li class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-all duration-200">
+                    <a href="{{ url_for('board_task_view', id=task.id) }}" class="flex items-start gap-3 flex-1 min-w-0">
+                        {% set prio_dot = {'hoch': 'bg-red-400', 'mittel': 'bg-amber-400', 'niedrig': 'bg-gray-300'} %}
+                        <span class="mt-2 w-1.5 h-1.5 rounded-full {{ prio_dot.get(task.priority, 'bg-gray-300') }} shrink-0"></span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-gray-900 truncate">{{ task.title }}</p>
+                            {% if task.contact %}
+                            <span class="text-xs text-petrol-600">{{ task.contact.display_name }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% if task.due_date %}
+                    <span class="text-[11px] tabular-nums flex-shrink-0 font-medium mt-0.5
+                        {% if task.due_date < today %}text-red-500 font-bold{% elif task.due_date == today %}text-amber-600{% else %}text-gray-400{% endif %}">
+                        {{ task.due_date.strftime('%d.%m.') }}
+                    </span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="py-8 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <p class="text-sm text-gray-400 font-medium">Keine offenen Aufgaben</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-5">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H4.598a.75.75 0 00-.75.75v3.634a.75.75 0 001.5 0v-2.033l.312.311a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.06-7.173a.75.75 0 00-1.5 0v2.033l-.312-.31a7 7 0 00-11.712 3.137.75.75 0 001.449.39 5.5 5.5 0 019.201-2.466l.312.311H11.4a.75.75 0 100 1.5h3.634a.75.75 0 00.75-.75V4.25z" clip-rule="evenodd"/></svg>
+                </div>
+                <h2 class="font-semibold text-sm text-gray-900">Aktivität</h2>
+            </div>
+        </div>
+        <div class="p-4 max-h-80 overflow-y-auto">
+            {% set typ_colors = {
+                'E-Mail':      'bg-blue-400/70',
+                'Telefon':     'bg-teal-500/70',
+                'LinkedIn':    'bg-sky-400/70',
+                'Persönlich':  'bg-petrol-500/70',
+                'Messe':       'bg-amber-500/70',
+                'Empfehlung':  'bg-gold/80',
+                'Import':      'bg-gray-300',
+                'Erinnerung':  'bg-amber-400/70',
+            } %}
+            {% if recent_activity %}
+            <div class="space-y-1">
+                {% for interaction in recent_activity %}
+                <a href="{{ url_for('contact_view', id=interaction.contact_id) }}" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50/80 transition-all duration-200 group">
+                    <div class="w-1.5 h-1.5 rounded-full {{ typ_colors.get(interaction.typ, 'bg-gray-300') }} mt-2 flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-gray-900 truncate">
+                            <span class="font-medium group-hover:text-petrol-600 transition-colors">{{ interaction.contact.display_name }}</span>
+                            <span class="text-gray-300 mx-1">&middot;</span>
+                            <span class="text-gray-500">{{ interaction.typ }}</span>
+                        </p>
+                        {% if interaction.notiz %}
+                        <p class="text-xs text-gray-400 truncate mt-0.5">{{ interaction.notiz }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="text-[11px] tabular-nums text-gray-400 flex-shrink-0 mt-0.5">{{ interaction.datum.strftime('%d.%m.') }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-8 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <p class="text-sm text-gray-400 font-medium">Noch keine Aktivität</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+{% if lost_reasons_dict or quellen_dict %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    {% if lost_reasons_dict %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-6">
+        <h2 class="text-sm font-semibold text-gray-900 mb-4">Verlorene Deals</h2>
+        {% set total_lost = lost_reasons_dict.values()|sum %}
+        <div class="space-y-2">
+            {% for reason_key, reason_label in lost_reasons %}
+            {% set count = lost_reasons_dict.get(reason_key, 0) %}
+            {% if count > 0 %}
+            {% set pct = (count / total_lost * 100)|round|int %}
+            <div class="flex items-center gap-3">
+                <span class="text-[11px] font-medium text-gray-500 w-32 text-right truncate">{{ reason_label }}</span>
+                <div class="flex-1 h-5 bg-gray-100/70 rounded-md overflow-hidden">
+                    <div class="h-full rounded-md flex items-center transition-all duration-500"
+                         style="width: {{ [pct, 5]|max }}%; background: #b04858; opacity: 0.75;">
+                        <span class="text-[10px] font-bold text-white px-2">{{ count }}</span>
+                    </div>
+                </div>
+                <span class="text-[11px] tabular-nums text-gray-400 w-8">{{ pct }}%</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% if quellen_dict %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-6">
+        <h2 class="text-sm font-semibold text-gray-900 mb-4">Kontakte nach Quelle</h2>
+        {% set total_quellen = quellen_dict.values()|sum %}
+        <div class="space-y-2">
+            {% for q_key, q_label in quellen_options %}
+            {% if q_key %}
+            {% set count = quellen_dict.get(q_key, 0) %}
+            {% if count > 0 %}
+            {% set pct = (count / total_quellen * 100)|round|int %}
+            <div class="flex items-center gap-3">
+                <span class="text-[11px] font-medium text-gray-500 w-32 text-right truncate">{{ q_label }}</span>
+                <div class="flex-1 h-5 bg-gray-100/70 rounded-md overflow-hidden">
+                    <div class="h-full rounded-md flex items-center transition-all duration-500"
+                         style="width: {{ [pct, 5]|max }}%; background: #00707A; opacity: 0.75;">
+                        <span class="text-[10px] font-bold text-white px-2">{{ count }}</span>
+                    </div>
+                </div>
+                <span class="text-[11px] tabular-nums text-gray-400 w-8">{{ pct }}%</span>
+            </div>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-6 fade-up delay-6">
+    <a href="{{ url_for('timetracking') }}" class="block bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-petrol-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Heute erfasst</p>
+                    <p class="text-xl font-extrabold text-gray-900 tabular-nums">{{ format_minutes(today_time_minutes) }}</p>
+                </div>
+            </div>
+            {% if active_timer %}
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+                </span>
+                <span class="text-xs font-semibold text-teal-700">Timer läuft</span>
+            </div>
+            {% endif %}
+        </div>
+    </a>
+    <a href="{{ url_for('documents', tab='invoices', status='open') }}" class="block bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl {% if overdue_invoice_count > 0 %}bg-red-50{% else %}bg-teal-50{% endif %} flex items-center justify-center">
+                    <svg class="w-5 h-5 {% if overdue_invoice_count > 0 %}text-red-500{% else %}text-teal-600{% endif %}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                </div>
+                <div>
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Offene Rechnungen</p>
+                    <p class="text-xl font-extrabold text-gray-900 tabular-nums">{{ open_invoice_count }} <span class="text-sm font-semibold text-gray-500">&middot; {{ '{:,.0f}'.format(open_invoice_sum).replace(',', '.') }} €</span></p>
+                </div>
+            </div>
+            {% if overdue_invoice_count > 0 %}
+            <div class="text-right">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-red-50 text-red-600 border border-red-200/60">
+                    {{ overdue_invoice_count }} überfällig
+                </span>
+                <p class="text-[11px] text-red-500 font-semibold tabular-nums mt-0.5">{{ '{:,.0f}'.format(overdue_invoice_sum).replace(',', '.') }} €</p>
+            </div>
+            {% endif %}
+        </div>
+    </a>
+</div>
+
+
+<div class="mt-6 flex flex-wrap gap-3 fade-up delay-6">
+    <a href="{{ url_for('contact_new') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-petrol-500 text-white rounded-xl hover:bg-petrol-600 text-sm font-semibold shadow-sm shadow-petrol-500/20 transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Neuer Kontakt
+    </a>
+    <a href="{{ url_for('document_new', type='quote') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Neues Angebot
+    </a>
+    <a href="{{ url_for('document_new', type='invoice') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Neue Rechnung
+    </a>
+    <a href="{{ url_for('task_new') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Neue Aufgabe
+    </a>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function counter(target) {
+    return {
+        display: 0,
+        init() {
+            if (target === 0) return;
+            const duration = 600;
+            const steps = 20;
+            const stepTime = duration / steps;
+            let current = 0;
+            const increment = target / steps;
+            const interval = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    this.display = target;
+                    clearInterval(interval);
+                } else {
+                    this.display = Math.floor(current);
+                }
+            }, stepTime);
+        }
+    }
+}
+</script>
+{% endblock %}

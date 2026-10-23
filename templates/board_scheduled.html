@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+    
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 fade-up">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                <a href="{{ url_for('board') }}" class="hover:text-petrol-600 transition-colors">Board</a>
+                <span>/</span>
+                <span>Terminiert</span>
+            </div>
+            <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Terminiert</h1>
+            <p class="text-sm text-gray-400 mt-0.5">Zukunfts-Tasks · rutschen {{ lead_days }} Tage vor Fälligkeit automatisch aufs Board</p>
+        </div>
+        <a href="{{ url_for('board') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl shadow-sm hover:bg-gray-50 transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Zurück zum Board
+        </a>
+    </div>
+
+    
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-gray-500 mb-5 fade-up delay-1">
+        <span><span class="font-bold text-gray-900">{{ tasks|length }}</span> terminierte Tasks</span>
+        <span>ausgeblendet bis Fälligkeit ≤ <span class="font-semibold text-gray-700 tabular-nums">{{ cutoff.strftime('%d.%m.%Y') }}</span></span>
+    </div>
+
+    
+    <p class="text-xs text-gray-400 mb-4 fade-up delay-1">
+        Diese Tasks sind bewusst vom Board ausgeblendet, weil sie erst später anfallen. Die Volltextsuche findet sie weiterhin.
+    </p>
+
+    {% if tasks %}
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden fade-up delay-2">
+        {% set ns = namespace(current_month='') %}
+        {% for task in tasks %}
+        {% set month_key = task.due_date.strftime('%Y-%m') %}
+
+        {% if month_key != ns.current_month %}
+        <div class="px-4 py-1.5 bg-gray-50/70 border-y border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            {{ task.due_date.strftime('%B %Y') }}
+        </div>
+        {% set ns.current_month = month_key %}
+        {% endif %}
+
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+
+            
+            <div class="flex-shrink-0 w-16 text-center">
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold tabular-nums bg-petrol-50 text-petrol-600"
+                      title="fällig {{ task.due_date.strftime('%d.%m.%Y') }} · in {{ (task.due_date - today).days }} Tagen">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                    {{ task.due_date.strftime('%d.%m.') }}
+                </span>
+            </div>
+
+            
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-[10px] text-gray-300">#{{ task.id }}</span>
+                    <a href="{{ url_for('board_task_view', id=task.id) }}" class="text-sm font-medium text-gray-900 truncate hover:text-petrol-600 transition-colors">{{ task.title }}</a>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-400">
+                    <span>{{ stage_labels.get(task.status, task.status) }}</span>
+                    {% if task.category %}<span class="text-petrol-600">· {{ task.category }}</span>{% endif %}
+                    {% if task.contact %}<span>· {{ task.contact.display_name }}</span>{% endif %}
+                    {% if task.recurrence_days %}<span title="wiederkehrend alle {{ task.recurrence_days }} Tage">· ↻ {{ task.recurrence_days }} T</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-16 text-gray-300 fade-up delay-2">
+        <svg class="w-10 h-10 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+        <p class="text-sm">Nichts terminiert. Alles Aktuelle steht am Board.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

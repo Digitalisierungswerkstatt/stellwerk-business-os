@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Content-Eintrag bearbeiten' if entry else 'Neuer Content-Eintrag' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto fade-up">
+    <div class="mb-6">
+        <a href="{{ url_for('content_calendar_bp.content_calendar') }}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Content-Kalender
+        </a>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-8">
+        <h1 class="font-headline text-xl font-bold text-gray-900 mb-6">{{ 'Content-Eintrag bearbeiten' if entry else 'Neuer Content-Eintrag' }}</h1>
+
+        {% if entry and preview %}
+        
+        <div class="mb-8">
+            <div class="flex items-baseline justify-between mb-2">
+                <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Feed-Vorschau · {{ entry.platform }}</h2>
+                <span class="text-[11px] text-gray-400">gespeicherter Stand</span>
+            </div>
+            {% if preview.problem %}
+            <div class="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <strong>Der Publisher würde diesen Post sperren:</strong> {{ preview.problem }}
+            </div>
+            {% endif %}
+            <div class="max-w-[520px] mx-auto rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden" x-data="{ mehr: false }">
+                <div class="flex items-center gap-3 px-4 pt-4">
+                    <div class="w-10 h-10 rounded-full bg-petrol-600 text-white flex items-center justify-center text-sm font-bold">{{ preview.author[:1] }}</div>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-900">{{ preview.author }}</div>
+                        <div class="text-[11px] text-gray-400">{{ entry.scheduled_for.strftime('%d.%m.%Y %H:%M') if entry.scheduled_for else 'ohne Termin' }}</div>
+                    </div>
+                </div>
+                {% if preview.text %}
+                <div class="px-4 py-3 text-sm text-gray-800 whitespace-pre-line">
+                    {%- if preview.folded -%}
+                    <span x-show="!mehr">{{ preview.above_fold }}… <button type="button" @click="mehr = true" class="text-gray-500 font-semibold">mehr</button></span>
+                    <span x-show="mehr" x-cloak>{{ preview.text }}</span>
+                    {%- else -%}{{ preview.text }}{%- endif -%}
+                </div>
+                {% endif %}
+                {% if preview.media %}
+                <div class="{{ 'flex overflow-x-auto snap-x gap-1' if preview.media|length > 1 else '' }} bg-gray-100">
+                    {% for m in preview.media %}
+                    <div class="{{ 'snap-start shrink-0 w-[85%]' if preview.media|length > 1 else '' }} relative">
+                        {% if not m.exists %}
+                        <div class="p-6 text-sm text-red-600">Datei fehlt: {{ m.name }}</div>
+                        {% elif m.video %}
+                        <video src="{{ url_for('content_calendar_bp.content_calendar_asset', id=entry.id, n=m.n) }}" controls class="w-full"></video>
+                        {% else %}
+                        <img src="{{ m.url or url_for('content_calendar_bp.content_calendar_asset', id=entry.id, n=m.n) }}" alt="{{ m.name }}" class="w-full block">
+                        {% endif %}
+                        {% if preview.media|length > 1 %}<span class="absolute top-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">{{ loop.index }}/{{ preview.media|length }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if preview.media|length == 1 and preview.publisher_kanal %}<div class="px-4 pt-2 text-[11px] text-gray-400">Einzelbild: steht darauf ein Wisch-Hinweis, fehlt das Karussell dahinter.</div>{% endif %}
+                {% endif %}
+                {% if preview.publisher_kanal %}
+                <div class="px-4 py-3 border-t border-gray-100 mt-2">
+                    {% if preview.comment %}
+                    <div class="flex gap-2 text-sm">
+                        <div class="w-7 h-7 shrink-0 rounded-full bg-petrol-600 text-white flex items-center justify-center text-[11px] font-bold">{{ preview.author[:1] }}</div>
+                        <div class="rounded-xl bg-gray-100 px-3 py-2"><div class="text-xs font-semibold text-gray-900">{{ preview.author }} · erster Kommentar</div><div class="text-gray-800 break-all">{{ preview.comment }}</div></div>
+                    </div>
+                    {% else %}
+                    <div class="text-xs text-gray-400">Kein erster Kommentar (Notiz-Zeile „Erster Kommentar: …“ fehlt).</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('content_calendar_bp.content_calendar_view', id=entry.id) if entry else url_for('content_calendar_bp.content_calendar_new') }}">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2 space-y-5">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Titel *</label>
+                        <input type="text" name="title" required maxlength="200" value="{{ entry.title if entry else '' }}"
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200 focus:border-indigo-300"
+                               placeholder="Slot-/Post-Titel">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Copy / Caption</label>
+                        <textarea name="content_text" rows="6"
+                                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200 focus:border-indigo-300"
+                                  placeholder="Caption-Entwurf...">{{ entry.content_text or '' if entry else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Content-Link</label>
+                        <input type="text" name="asset_link" value="{{ entry.asset_link or '' if entry else '' }}"
+                               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200 focus:border-indigo-300"
+                               placeholder="Pfad im Kundenordner oder URL">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Notiz</label>
+                        <textarea name="notes" rows="3"
+                                  class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200 focus:border-indigo-300"
+                                  placeholder="Interne Notiz...">{{ entry.notes or '' if entry else '' }}</textarea>
+                    </div>
+                </div>
+
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Status</label>
+                        <select name="status" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200">
+                            {% for val, label, _ in stages %}
+                            <option value="{{ val }}" {% if (entry.status if entry else (preselect_status or 'idee')) == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1.5 text-[11px] text-gray-400 leading-snug">„Scheduled“ ist die Veröffentlichungsfreigabe, der Publisher postet dann von selbst. Vorher die Feed-Vorschau oben ansehen: Text, Bild und erster Kommentar zusammen.</p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Plattform</label>
+                        <select name="platform" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200">
+                            {% for val, label in platforms %}
+                            <option value="{{ val }}" {% if (entry.platform if entry else 'instagram') == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Termin</label>
+                        <input type="datetime-local" name="scheduled_for"
+                               value="{{ entry.scheduled_for.strftime('%Y-%m-%dT%H:%M') if entry and entry.scheduled_for else '' }}"
+                               class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Kategorie</label>
+                        <input type="text" name="category" value="{{ entry.category or '' if entry else '' }}"
+                               class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200"
+                               placeholder="Themen-Cluster">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Kunde</label>
+                        <div x-data="{
+                            contactId: '{{ entry.contact_id if entry and entry.contact_id else (preselect_contact or '') }}',
+                            contactSearch: '',
+                            showContacts: false,
+                            
+                            contacts: [{% for c in contacts %}{id: {{ c.id }}, name: {{ (c.organisation or c.display_name) | tojson | forceescape }}}{{ ',' if not loop.last }}{% endfor %}],
+                            get contactsFiltered() {
+                                if (!this.contactSearch) return this.contacts;
+                                const q = this.contactSearch.toLowerCase();
+                                return this.contacts.filter(c => c.name.toLowerCase().includes(q));
+                            },
+                            selectContact(c) { this.contactId = c.id; this.contactSearch = c.name; this.showContacts = false; },
+                            init() { const f = this.contacts.find(c => c.id == this.contactId); if (f) this.contactSearch = f.name; }
+                        }">
+                            <div class="relative" @click.outside="showContacts = false">
+                                
+                                <input type="hidden" name="contact_id"
+                                       value="{{ entry.contact_id if entry and entry.contact_id else (preselect_contact or '') }}"
+                                       :value="contactId">
+                                <input type="text"
+                                       x-model="contactSearch"
+                                       @focus="showContacts = true"
+                                       @input="showContacts = true; if (!contactSearch) contactId = ''"
+                                       placeholder="Kunde suchen... (leer = DW/allgemein)"
+                                       autocomplete="off"
+                                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-petrol-200">
+                                <div x-show="showContacts"
+                                     class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                    <template x-for="c in contactsFiltered" :key="c.id">
+                                        <div @mousedown.prevent @click="selectContact(c)"
+                                             class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                             :class="contactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : 'text-gray-700'"
+                                             x-text="c.name"></div>
+                                    </template>
+                                    <div x-show="contactsFiltered.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Kein Kunde gefunden</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
+                {% if entry %}
+                <button type="submit" form="delete-form" class="text-sm text-red-400 hover:text-red-600 transition-colors">Löschen</button>
+                {% else %}
+                <span></span>
+                {% endif %}
+                <div class="flex gap-3">
+                    <a href="{{ url_for('content_calendar_bp.content_calendar') }}" class="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">Abbrechen</a>
+                    <button type="submit" class="px-6 py-2.5 bg-gradient-to-b from-petrol-500 to-petrol-600 text-white text-sm font-semibold rounded-xl shadow-sm hover:from-petrol-600 hover:to-petrol-700 transition-all duration-200">{{ 'Speichern' if entry else 'Eintrag erstellen' }} <span class="text-petrol-200 text-[10px] ml-1">Ctrl+S</span></button>
+                </div>
+            </div>
+        </form>
+
+        {% if entry %}
+        <form id="delete-form" method="POST" action="{{ url_for('content_calendar_bp.content_calendar_delete', id=entry.id) }}"
+              onsubmit="return confirm('Content-Eintrag wirklich löschen?')" class="hidden"></form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.querySelector('form[method="POST"]').submit();
+    }
+});
+</script>
+{% endblock %}

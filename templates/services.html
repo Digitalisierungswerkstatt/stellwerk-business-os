@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+{% block title %}Leistungskatalog - Stellwerk{% endblock %}
+
+{% block content %}
+<div x-data="serviceManager()" class="fade-up">
+    
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="font-headline text-2xl font-bold tracking-tight">Leistungskatalog</h1>
+            <p class="text-sm text-gray-400 mt-0.5">Einzelleistungen und Gruppen-Vorlagen für Angebote & Rechnungen</p>
+        </div>
+        <div class="flex gap-2">
+            <button @click="showAddGroup = true" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Gruppen-Vorlage
+            </button>
+            <button @click="showAdd = true" class="px-4 py-2 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/25 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Einzelleistung
+            </button>
+        </div>
+    </div>
+
+    
+    {% if group_templates %}
+    <div class="mb-8 fade-up delay-1">
+        <h2 class="font-headline text-lg font-bold mb-3 flex items-center gap-2">
+            <span class="w-1.5 h-5 bg-amber-500 rounded-full"></span>
+            Gruppen-Vorlagen
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for gt in group_templates %}
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover-lift">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-sm">{{ gt.title }}</h3>
+                        {% if gt.description %}
+                        <p class="text-xs text-gray-400 mt-0.5">{{ gt.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex gap-1">
+                        {% if not gt.active %}
+                        <span class="px-1.5 py-0.5 bg-gray-100 text-gray-400 text-[10px] font-bold rounded-lg">Inaktiv</span>
+                        {% endif %}
+                        <button @click='startEditGroup({{ gt | tojson_group_template }})' class="text-gray-400 hover:text-petrol-600 transition-colors p-1" title="Bearbeiten">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                        </button>
+                        <button @click="confirmDeleteGroup({{ gt.id }})" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Löschen">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    {% for item in gt.items %}
+                    <div class="flex justify-between items-center text-xs py-1 {{ 'border-t border-gray-50' if not loop.first else '' }}">
+                        <span class="text-gray-600">{{ item.title }}</span>
+                        <div class="flex items-center gap-2">
+                            {% if item.billing_type == 'recurring' %}
+                            <span class="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-bold rounded">mtl.</span>
+                            {% endif %}
+                            <span class="font-semibold tabular-nums">&euro; {{ item.unit_price | format_euro }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-100 text-right">
+                    <span class="text-xs text-gray-400">{{ gt.items | length }} Positionen</span>
+                    <span class="text-sm font-bold ml-2">&euro; {{ gt.items | sum(attribute='unit_price') | format_euro }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    
+    {% for cat_key, cat_label in categories %}
+    {% if cat_key in grouped %}
+    <div class="mb-6 fade-up delay-{{ loop.index + 1 }}">
+        <h2 class="font-headline text-lg font-bold mb-3 flex items-center gap-2">
+            <span class="w-1.5 h-5 bg-petrol-500 rounded-full"></span>
+            {{ cat_label }}
+        </h2>
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-[11px] font-bold text-gray-400 uppercase border-b border-gray-100">
+                        <th class="text-left px-5 py-3">Bezeichnung</th>
+                        <th class="text-left px-5 py-3">Beschreibung</th>
+                        <th class="text-right px-5 py-3 w-24">Einheit</th>
+                        <th class="text-right px-5 py-3 w-24">Typ</th>
+                        <th class="text-right px-5 py-3 w-28">Preis</th>
+                        <th class="text-center px-5 py-3 w-20">Verw.</th>
+                        <th class="w-20"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for svc in grouped[cat_key] %}
+                    <tr class="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td class="px-5 py-3 font-semibold">{{ svc.title }}</td>
+                        <td class="px-5 py-3 text-gray-500 text-xs max-w-xs truncate">{{ svc.description or '-' }}</td>
+                        <td class="px-5 py-3 text-right">{{ svc.unit }}</td>
+                        <td class="px-5 py-3 text-right">
+                            <span class="px-2 py-0.5 rounded-lg text-[11px] font-bold {{ 'bg-violet-100 text-violet-700' if svc.billing_type == 'recurring' else 'bg-gray-100 text-gray-600' }}">
+                                {{ 'Laufend' if svc.billing_type == 'recurring' else 'Einmalig' }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 text-right font-semibold tabular-nums">&euro; {{ svc.unit_price | format_euro }}</td>
+                        <td class="px-5 py-3 text-center">
+                            {% if svc.use_count > 0 %}
+                            <span class="text-[11px] font-semibold text-gray-400 tabular-nums">{{ svc.use_count }}&times;</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right">
+                            <button @click='startEdit({{ svc | tojson_service }})' class="text-gray-400 hover:text-petrol-600 transition-colors p-1" title="Bearbeiten">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                            </button>
+                            <button @click="confirmDelete({{ svc.id }})" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Löschen">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    
+    <div class="mb-8 fade-up delay-7">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-headline text-lg font-bold flex items-center gap-2">
+                <span class="w-1.5 h-5 bg-emerald-500 rounded-full"></span>
+                Konditionen-Vorlagen
+            </h2>
+            <button @click="showAddCondition = true" class="text-xs font-semibold text-petrol-600 hover:text-petrol-700 flex items-center gap-1 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Vorlage anlegen
+            </button>
+        </div>
+        {% if conditions_templates %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for ct in conditions_templates %}
+            <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm p-4 hover:border-gray-300 transition-colors">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="font-semibold text-sm">{{ ct.name }}</span>
+                    <div class="flex gap-1">
+                        <button @click='startEditCondition({{ ct.id }}, {{ ct.name | tojson }}, {{ ct.text | tojson }}, {{ ct.active | tojson }})' class="text-gray-400 hover:text-petrol-600 transition-colors p-0.5" title="Bearbeiten">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                        </button>
+                        <button @click="confirmDeleteCondition({{ ct.id }})" class="text-gray-400 hover:text-red-500 transition-colors p-0.5" title="Löschen">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 line-clamp-2">{{ ct.text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 italic">Noch keine Konditionen-Vorlagen.</p>
+        {% endif %}
+    </div>
+
+    
+    <template x-if="showAddCondition || editConditionId">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @click.self="closeConditionModal()">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 mx-4" @click.stop>
+                <h3 class="font-headline text-lg font-bold mb-4" x-text="editConditionId ? 'Konditionen-Vorlage bearbeiten' : 'Neue Konditionen-Vorlage'"></h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Name</label>
+                        <input type="text" x-model="conditionForm.name" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" placeholder="z.B. Standard 14 Tage">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Text</label>
+                        <textarea x-model="conditionForm.text" rows="4" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none" placeholder="Zahlungsbedingungen..."></textarea>
+                    </div>
+                    <template x-if="editConditionId">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="conditionForm.active" id="ct-active" class="rounded">
+                            <label for="ct-active" class="text-sm text-gray-600">Aktiv</label>
+                        </div>
+                    </template>
+                </div>
+                <div class="flex justify-end gap-2 mt-5">
+                    <button @click="closeConditionModal()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">Abbrechen</button>
+                    <button @click="saveConditionTemplate()" class="px-4 py-2 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl text-sm font-semibold shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all">
+                        <span x-text="editConditionId ? 'Speichern' : 'Anlegen'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    
+    {% if not grouped and not group_templates %}
+    <div class="text-center py-16 text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+        <p class="font-semibold mb-1">Noch keine Leistungen angelegt</p>
+        <p class="text-sm">Klicke auf "Einzelleistung" oder "Gruppen-Vorlage" um zu starten.</p>
+    </div>
+    {% endif %}
+
+    
+    <template x-if="showAdd || editId">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @click.self="closeModal()">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 mx-4" @click.stop>
+                <h3 class="font-headline text-lg font-bold mb-4" x-text="editId ? 'Leistung bearbeiten' : 'Neue Einzelleistung'"></h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Kategorie</label>
+                        <select x-model="form.category" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                            {% for val, label in categories %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Bezeichnung</label>
+                        <input type="text" x-model="form.title" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" placeholder="z.B. Conversion Tracking">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Beschreibung</label>
+                        <textarea x-model="form.description" rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none" placeholder="Leistungsbeschreibung für das Angebot..."></textarea>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Preis (&euro;)</label>
+                            <input type="number" step="0.01" x-model.number="form.unit_price" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Einheit</label>
+                            <select x-model="form.unit" @change="form.billing_type = form.unit === 'Monatlich' ? 'recurring' : 'onetime'" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                                {% for val, label in unit_options %}
+                                <option value="{{ val }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Typ</label>
+                            <button @click="form.billing_type = form.billing_type === 'onetime' ? 'recurring' : 'onetime'"
+                                    class="w-full px-3 py-2 rounded-xl text-sm font-bold transition-colors border"
+                                    :class="form.billing_type === 'recurring' ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-gray-100 text-gray-600 border-gray-200'"
+                                    x-text="form.billing_type === 'recurring' ? 'Laufend' : 'Einmalig'">
+                            </button>
+                        </div>
+                    </div>
+                    <template x-if="editId">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="form.active" id="svc-active" class="rounded">
+                            <label for="svc-active" class="text-sm text-gray-600">Aktiv</label>
+                        </div>
+                    </template>
+                </div>
+                <div class="flex justify-end gap-2 mt-5">
+                    <button @click="closeModal()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">Abbrechen</button>
+                    <button @click="saveService()" class="px-4 py-2 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl text-sm font-semibold shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all">
+                        <span x-text="editId ? 'Speichern' : 'Anlegen'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    
+    <template x-if="showAddGroup || editGroupId">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @click.self="closeGroupModal()">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 mx-4 max-h-[85vh] overflow-y-auto" @click.stop>
+                <h3 class="font-headline text-lg font-bold mb-4" x-text="editGroupId ? 'Gruppen-Vorlage bearbeiten' : 'Neue Gruppen-Vorlage'"></h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Gruppenname</label>
+                        <input type="text" x-model="groupForm.title" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" placeholder="z.B. Das Digitale Fundament">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Beschreibung (optional)</label>
+                        <textarea x-model="groupForm.description" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none" placeholder="Optionale Beschreibung der Gruppe..."></textarea>
+                    </div>
+
+                    
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Positionen</label>
+                        <div class="space-y-2">
+                            <template x-for="(item, idx) in groupForm.items" :key="idx">
+                                <div class="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5">
+                                    <span class="text-xs font-bold text-gray-400 w-5" x-text="(idx+1) + '.'"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <input type="text" x-model="item.title" placeholder="Bezeichnung" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                                        <input type="text" x-model="item.description" placeholder="Beschreibung (optional)" class="w-full mt-1 px-2 py-1 border border-gray-100 rounded-lg text-xs text-gray-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                                    </div>
+                                    <select x-model="item.unit" @change="item.billing_type = item.unit === 'Monatlich' ? 'recurring' : 'onetime'" class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500/20">
+                                        {% for val, label in unit_options %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="number" step="0.01" x-model.number="item.unit_price" class="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20">
+                                    <button @click="item.billing_type = item.billing_type === 'onetime' ? 'recurring' : 'onetime'"
+                                            class="px-2 py-1 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap"
+                                            :class="item.billing_type === 'recurring' ? 'bg-violet-100 text-violet-700' : 'bg-gray-200 text-gray-500'"
+                                            x-text="item.billing_type === 'recurring' ? 'Lfd.' : 'Einm.'">
+                                    </button>
+                                    <button @click="groupForm.items.splice(idx, 1)" class="text-gray-300 hover:text-red-500 transition-colors p-0.5">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+
+                        
+                        <div class="flex gap-2 mt-2">
+                            <button @click="groupForm.items.push({title:'', description:'', quantity:1, unit:'Einmalig', unit_price:0, billing_type:'onetime'})"
+                                    class="text-xs font-semibold text-petrol-600 hover:text-petrol-700 flex items-center gap-1 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                                Leere Position
+                            </button>
+                            <div class="relative" x-data="{showPicker: false}" @click.outside="showPicker = false">
+                                <button @click="showPicker = !showPicker"
+                                        class="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                                    Aus Katalog
+                                </button>
+                                <div x-show="showPicker" x-transition
+                                     class="absolute z-50 mt-1 left-0 w-72 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                    {% for cat_key, cat_label in categories %}
+                                    {% if cat_key in grouped %}
+                                    <div class="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">{{ cat_label }}</div>
+                                    {% for svc in grouped[cat_key] %}
+                                    {% if svc.active %}
+                                    <button @click="groupForm.items.push({title:{{ svc.title | tojson | forceescape }}, description:{{ (svc.description or '') | tojson | forceescape }}, quantity:1, unit:{{ svc.unit | tojson | forceescape }}, unit_price:{{ svc.unit_price | float }}, billing_type:{{ svc.billing_type | tojson | forceescape }}, service_template_id: {{ svc.id }} }); showPicker = false"
+                                            class="w-full text-left px-3 py-1.5 hover:bg-petrol-50 transition-colors flex justify-between items-center gap-2 text-xs">
+                                        <span class="truncate">{{ svc.title }}</span>
+                                        <span class="font-semibold tabular-nums text-gray-500 whitespace-nowrap">&euro; {{ svc.unit_price | format_euro }}</span>
+                                    </button>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <template x-if="editGroupId">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="groupForm.active" id="gt-active" class="rounded">
+                            <label for="gt-active" class="text-sm text-gray-600">Aktiv</label>
+                        </div>
+                    </template>
+                </div>
+
+                
+                <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                    <span class="text-xs text-gray-400" x-text="groupForm.items.length + ' Positionen'"></span>
+                    <span class="font-bold tabular-nums" x-text="'€ ' + formatEuro(groupForm.items.reduce((s, i) => s + (parseFloat(i.unit_price) || 0) * (parseFloat(i.quantity) || 1), 0))"></span>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-4">
+                    <button @click="closeGroupModal()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">Abbrechen</button>
+                    <button @click="saveGroupTemplate()" class="px-4 py-2 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl text-sm font-semibold shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all">
+                        <span x-text="editGroupId ? 'Speichern' : 'Anlegen'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function serviceManager() {
+    return {
+        showAdd: false,
+        editId: null,
+        form: { category: '{{ categories[0][0] if categories else "" }}', title: '', description: '', unit_price: 0, unit: 'Einmalig', billing_type: 'onetime', active: true },
+
+        resetForm() {
+            this.form = { category: '{{ categories[0][0] if categories else "" }}', title: '', description: '', unit_price: 0, unit: 'Einmalig', billing_type: 'onetime', active: true };
+        },
+
+        startEdit(svc) {
+            this.editId = svc.id;
+            this.form = {
+                category: svc.category,
+                title: svc.title,
+                description: svc.description || '',
+                unit_price: parseFloat(svc.unit_price),
+                unit: svc.unit,
+                billing_type: svc.billing_type,
+                active: svc.active,
+            };
+        },
+
+        closeModal() {
+            this.showAdd = false;
+            this.editId = null;
+            this.resetForm();
+        },
+
+        async saveService() {
+            if (!this.form.title.trim()) { alert('Bezeichnung erforderlich'); return; }
+            const url = this.editId ? `/services/${this.editId}/edit` : '/services/new';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(this.form)
+            });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+            else alert(result.error || 'Fehler');
+        },
+
+        async confirmDelete(id) {
+            if (!confirm('Leistung wirklich löschen?')) return;
+            const resp = await fetch(`/services/${id}/delete`, { method: 'POST' });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+        },
+
+        showAddGroup: false,
+        editGroupId: null,
+        groupForm: { title: '', description: '', active: true, items: [] },
+
+        resetGroupForm() {
+            this.groupForm = { title: '', description: '', active: true, items: [] };
+        },
+
+        startEditGroup(gt) {
+            this.editGroupId = gt.id;
+            this.groupForm = {
+                title: gt.title,
+                description: gt.description || '',
+                active: gt.active,
+                items: gt.items.map(i => ({
+                    title: i.title,
+                    description: i.description || '',
+                    quantity: i.quantity || 1,
+                    unit: i.unit,
+                    unit_price: parseFloat(i.unit_price),
+                    billing_type: i.billing_type,
+                    service_template_id: i.service_template_id || null,
+                })),
+            };
+        },
+
+        closeGroupModal() {
+            this.showAddGroup = false;
+            this.editGroupId = null;
+            this.resetGroupForm();
+        },
+
+        async saveGroupTemplate() {
+            if (!this.groupForm.title.trim()) { alert('Gruppenname erforderlich'); return; }
+            if (this.groupForm.items.length === 0) { alert('Mindestens eine Position erforderlich'); return; }
+            const url = this.editGroupId ? `/group-templates/${this.editGroupId}/edit` : '/group-templates/new';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(this.groupForm)
+            });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+            else alert(result.error || 'Fehler');
+        },
+
+        async confirmDeleteGroup(id) {
+            if (!confirm('Gruppen-Vorlage wirklich löschen?')) return;
+            const resp = await fetch(`/group-templates/${id}/delete`, { method: 'POST' });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+        },
+
+        showAddCondition: false,
+        editConditionId: null,
+        conditionForm: { name: '', text: '', active: true },
+
+        startEditCondition(id, name, text, active) {
+            this.editConditionId = id;
+            this.conditionForm = { name, text, active };
+        },
+
+        closeConditionModal() {
+            this.showAddCondition = false;
+            this.editConditionId = null;
+            this.conditionForm = { name: '', text: '', active: true };
+        },
+
+        async saveConditionTemplate() {
+            if (!this.conditionForm.name.trim()) { alert('Name erforderlich'); return; }
+            if (!this.conditionForm.text.trim()) { alert('Text erforderlich'); return; }
+            const url = this.editConditionId ? `/conditions-templates/${this.editConditionId}/edit` : '/conditions-templates/new';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(this.conditionForm)
+            });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+            else alert(result.error || 'Fehler');
+        },
+
+        async confirmDeleteCondition(id) {
+            if (!confirm('Konditionen-Vorlage wirklich löschen?')) return;
+            const resp = await fetch(`/conditions-templates/${id}/delete`, { method: 'POST' });
+            const result = await resp.json();
+            if (result.success) window.location.reload();
+        },
+
+        formatEuro(val) {
+            return new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+        },
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2 fade-up">
+        <div>
+            <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Mandate</h1>
+            <p class="text-sm text-gray-400 mt-0.5">Laufende Betreuung. Welche Kontakte hier stehen, steuert der Schalter „Mandat aktiv“ im Kontakt.</p>
+        </div>
+        <a href="{{ url_for('board') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl shadow-sm hover:bg-gray-50 transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15M3.75 9h16.5M3.75 15h16.5"/></svg>
+            Zum Board
+        </a>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-gray-500 mb-6 fade-up delay-1">
+        <span><span class="font-bold text-gray-900">{{ cards|length }}</span> Mandate</span>
+        <span><span class="font-bold text-gray-900">{{ total_tasks }}</span> offene Tasks</span>
+        <span><span class="font-bold {% if total_overdue %}text-red-500{% else %}text-gray-900{% endif %}">{{ total_overdue }}</span> überfällig</span>
+    </div>
+
+    {% if retainer_ohne_flag %}
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 mb-6 text-sm text-amber-800 fade-up">
+        <span class="font-semibold">Aktiver Retainer, aber nicht als Mandat markiert:</span>
+        {% for c in retainer_ohne_flag %}<a href="{{ url_for('contact_edit', id=c.id) }}" class="underline hover:text-amber-900">{{ c.organisation or c.display_name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if cards %}
+    {% set ns = namespace(group=None) %}
+    {% for m in cards %}
+
+        {% if m.group != ns.group %}
+        <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-7 mb-3 first:mt-0 fade-up">{{ m.group }}</h2>
+        {% set ns.group = m.group %}
+        {% endif %}
+
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden mb-3 fade-up">
+            
+            <div class="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-gray-100">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <a href="{{ url_for('board', contact_id=m.contact.id) }}"
+                           class="text-base font-semibold text-gray-900 hover:text-petrol-600 transition-colors">
+                            {{ m.contact.organisation or m.contact.display_name }}
+                        </a>
+                        {% if m.is_dach %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-500" title="Sammel-/Dach-Mandat, bündelt die Sub-Mandate">Dach</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-gray-400">
+                        {% if m.retainer %}
+                        <span class="text-petrol-600 font-medium">{{ '%0.0f'|format(m.retainer.monthly_fee) }} €/Mo
+                            {%- if m.retainer.billing_interval_months and m.retainer.billing_interval_months > 1 %} · True-up {{ m.retainer.billing_interval_months }}-monatl.{% endif %}</span>
+                        {% endif %}
+                        {% if m.contact.abrechnungsmodell %}<span>· {{ m.contact.abrechnungsmodell }}</span>{% endif %}
+                    </div>
+                </div>
+                {% if m.overdue %}
+                <span class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-red-50 text-red-600">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    {{ m.overdue }} überfällig
+                </span>
+                {% endif %}
+            </div>
+
+            {% if m.erinnerungstext %}
+            
+            <div class="flex items-start gap-2 px-5 py-2 bg-amber-50/50 border-b border-amber-100/60 text-[12px] text-amber-800">
+                <svg class="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+                <span><span class="font-semibold">Erinnerung{% if m.erinnerung %} {{ m.erinnerung.strftime('%d.%m.') }}{% endif %}:</span> {{ m.erinnerungstext }}</span>
+            </div>
+            {% endif %}
+
+            {% if m.subs %}
+            
+            <div class="px-5 py-2.5 border-b border-gray-100 text-[12px] text-gray-500">
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sub-Mandate:</span>
+                {% for sid, sname in m.subs %}<a href="{{ url_for('board', contact_id=sid) }}" class="text-petrol-600 hover:underline">{{ sname }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+            </div>
+            {% endif %}
+
+            
+            {% if m.tasks %}
+            <div>
+                {% for t in m.tasks %}
+                <div class="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100 last:border-b-0 transition-colors
+                            {% if t.id == m.next_id %}bg-petrol-50/40{% else %}hover:bg-gray-50/50{% endif %}">
+                    {% if t.id == m.next_id %}
+                    <span class="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-petrol-600 bg-petrol-100/70">Nächster Zug</span>
+                    {% else %}
+                    <span class="font-mono text-[10px] text-gray-300 w-9 flex-shrink-0 text-right">#{{ t.id }}</span>
+                    {% endif %}
+                    <a href="{{ url_for('board_task_view', id=t.id) }}" class="min-w-0 flex-1 text-sm text-gray-700 truncate hover:text-petrol-600 transition-colors">
+                        {%- if t.id == m.next_id %}<span class="font-mono text-[10px] text-gray-400">#{{ t.id }}</span> {% endif -%}
+                        {{ t.title }}</a>
+                    <div class="flex-shrink-0 flex items-center gap-2 text-[11px] text-gray-400">
+                        {% if t.priority == 'hoch' %}<span class="px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-semibold">hoch</span>{% endif %}
+                        <span>{{ stage_labels.get(t.status, t.status) }}</span>
+                        {% if t.due_date %}
+                        <span class="{% if t.due_date < today %}text-red-500 font-semibold{% endif %}">
+                            {% if t.due_date < today %}⚠ {% endif %}{{ t.due_date.strftime('%d.%m.') }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% elif not m.subs %}
+            <div class="px-5 py-4 text-sm text-gray-300">Keine offenen Tasks. Mandat läuft ruhig.</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-center py-16 text-gray-300 fade-up delay-2">
+        <p class="text-sm">Keine aktiven Mandate gefunden.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

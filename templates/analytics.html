@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}Analytics - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="mb-8 fade-up">
+    <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Conversion-Analyse</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Conversion Rates, Verweildauer und Pipeline-Effizienz</p>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12"/></svg>
+        </div>
+        Conversion Rates
+    </h2>
+
+    {% if conversion_rates %}
+    <div class="space-y-4">
+        {% for cr in conversion_rates %}
+        <div class="flex items-center gap-4">
+            <div class="w-44 text-right">
+                <span class="text-sm font-medium text-gray-700">{{ cr.from_label }}</span>
+                <svg class="inline w-4 h-4 text-gray-300 mx-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                <span class="text-sm font-medium text-gray-700">{{ cr.to_label }}</span>
+            </div>
+            <div class="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden relative">
+                <div class="h-full rounded-lg flex items-center transition-all duration-700
+                    {% if cr.rate >= 50 %}bg-emerald-400{% elif cr.rate >= 25 %}bg-amber-400{% else %}bg-gray-400{% endif %}"
+                     style="width: {{ [cr.rate, 3]|max if cr.rate > 0 else 0 }}%"
+                     x-data x-init="$el.style.width='0%'; setTimeout(() => $el.style.width='{{ [cr.rate, 3]|max if cr.rate > 0 else 0 }}%', 200)">
+                    {% if cr.rate > 0 %}
+                    <span class="text-[11px] font-bold text-white px-2.5 drop-shadow-sm">{{ cr.rate }}%</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="w-20 text-right">
+                <span class="text-xs text-gray-400 tabular-nums">{{ cr.to_count }}/{{ cr.from_count }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400 text-center py-8">Noch keine Status-Änderungen erfasst</p>
+    {% endif %}
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-2">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        Durchschnittliche Verweildauer pro Stage
+    </h2>
+
+    <div class="overflow-hidden rounded-xl border border-gray-200/60">
+        <table class="min-w-full divide-y divide-gray-100">
+            <thead>
+                <tr class="bg-gray-50/80">
+                    <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Stage</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Durchschn. Tage</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Übergänge</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100/80">
+                {% for sd in stage_durations %}
+                <tr class="hover:bg-gray-50/50 transition-colors">
+                    <td class="px-5 py-3">
+                        <span class="text-sm font-medium text-gray-900">{{ sd.label }}</span>
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if sd.avg_days > 0 %}
+                        <span class="text-sm font-bold tabular-nums {% if sd.avg_days > 30 %}text-red-500{% elif sd.avg_days > 14 %}text-amber-500{% else %}text-gray-700{% endif %}">
+                            {{ sd.avg_days }} Tage
+                        </span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <span class="text-sm text-gray-500 tabular-nums">{{ sd.count }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-3">
+    <div class="flex items-center justify-between mb-5">
+        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>
+            </div>
+            Quellen-Analyse
+            <span class="text-[11px] text-gray-400 font-normal ml-1">{{ quellen_period_label }}</span>
+        </h2>
+        <form method="GET" class="flex gap-1.5">
+            <button type="submit" name="quellen_periode" value="monat"
+                    class="px-3 py-1 rounded-lg text-xs font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if quellen_periode == 'monat' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Monat</button>
+            <button type="submit" name="quellen_periode" value="quartal"
+                    class="px-3 py-1 rounded-lg text-xs font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if quellen_periode == 'quartal' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Quartal</button>
+            <button type="submit" name="quellen_periode" value="jahr"
+                    class="px-3 py-1 rounded-lg text-xs font-semibold transition-all {{ 'bg-petrol-500 text-white shadow-sm' if quellen_periode == 'jahr' else 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">Jahr</button>
+        </form>
+    </div>
+
+    {% if quellen_stats %}
+    <div class="overflow-x-auto rounded-xl border border-gray-200/60">
+        <table class="min-w-full divide-y divide-gray-100">
+            <thead>
+                <tr class="bg-gray-50/80">
+                    <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Quelle</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Neue Kontakte</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Gewonnen</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Umsatz</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Zeitaufwand</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Zeitkosten</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">ROI</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100/80">
+                {% for qs in quellen_stats %}
+                <tr class="hover:bg-petrol-50/30 transition-all duration-150 {{ 'bg-gray-50/40' if qs.key == '_allgemein' else '' }}">
+                    <td class="px-5 py-3">
+                        {% if qs.key == '_allgemein' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-300/30">
+                            {{ qs.label }}
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-700/10">
+                            {{ qs.label }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.kontakte > 0 %}
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ qs.kontakte }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.won > 0 %}
+                        <span class="text-sm font-bold text-emerald-600 tabular-nums">{{ qs.won }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.won_value > 0 %}
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ qs.won_value|format_euro }} €</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.minuten > 0 %}
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ format_minutes(qs.minuten) }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.zeitkosten > 0 %}
+                        <span class="text-sm text-gray-600 tabular-nums">{{ qs.zeitkosten|format_euro }} €</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if qs.roi is not none %}
+                        <span class="text-sm font-bold tabular-nums {{ 'text-emerald-600' if qs.roi >= 0 else 'text-red-500' }}">
+                            {{ qs.roi|format_euro }} €
+                        </span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="bg-gray-50/80">
+                    <td class="px-5 py-3 text-[11px] font-bold text-gray-500 uppercase">Gesamt</td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ quellen_stats|sum(attribute='kontakte') }}</span></td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold text-emerald-600 tabular-nums">{{ quellen_stats|sum(attribute='won') }}</span></td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ quellen_stats|sum(attribute='won_value')|format_euro }} €</span></td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ format_minutes(quellen_stats|sum(attribute='minuten')) }}</span></td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ quellen_stats|sum(attribute='zeitkosten')|format_euro }} €</span></td>
+                    {% set total_roi = quellen_stats|selectattr('roi', 'ne', none)|sum(attribute='roi') %}
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-extrabold tabular-nums {{ 'text-emerald-600' if total_roi >= 0 else 'text-red-500' }}">{{ total_roi|format_euro }} €</span></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p class="text-[10px] text-gray-400 mt-2">Zeitkosten berechnet mit {{ default_hourly_rate|int }} €/Std. &middot; ROI = Umsatz − Zeitkosten</p>
+    {% else %}
+    <div class="p-12 text-center">
+        <p class="text-sm text-gray-400 font-medium">Keine Daten für diesen Zeitraum</p>
+    </div>
+    {% endif %}
+</div>
+
+
+{% if quellen_historie and quellen_historie|length > 1 %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-4">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        </div>
+        Verlauf
+        <span class="text-[11px] text-gray-400 font-normal ml-1">letzte {{ quellen_historie|length }} {{ 'Monate' if quellen_periode == 'monat' else ('Quartale' if quellen_periode == 'quartal' else 'Jahre') }}</span>
+    </h2>
+
+    <div class="overflow-x-auto rounded-xl border border-gray-200/60">
+        <table class="min-w-full divide-y divide-gray-100">
+            <thead>
+                <tr class="bg-gray-50/80">
+                    <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Periode</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Neue Kontakte</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Gewonnen</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Umsatz</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Zeitaufwand</th>
+                    <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Zeitkosten</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100/80">
+                {% for h in quellen_historie %}
+                <tr class="hover:bg-petrol-50/30 transition-all duration-150 {{ 'bg-petrol-50/20 font-semibold' if loop.last else '' }}">
+                    <td class="px-5 py-3">
+                        <span class="text-sm font-medium text-gray-900">{{ h.label }}{% if loop.last %} <span class="text-[10px] text-petrol-500 font-bold">(aktuell)</span>{% endif %}</span>
+                    </td>
+                    <td class="px-5 py-3 text-right"><span class="text-sm font-bold text-gray-900 tabular-nums">{{ h.kontakte }}</span></td>
+                    <td class="px-5 py-3 text-right">
+                        {% if h.won > 0 %}
+                        <span class="text-sm font-bold text-emerald-600 tabular-nums">{{ h.won }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if h.won_value > 0 %}
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ h.won_value|format_euro }} €</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if h.minuten > 0 %}
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ format_minutes(h.minuten) }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        {% if h.zeitkosten > 0 %}
+                        <span class="text-sm text-gray-600 tabular-nums">{{ h.zeitkosten|format_euro }} €</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+
+{% if quote_conversion.total > 0 %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-5">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+        </div>
+        Angebots-Conversion
+    </h2>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+        <div class="p-4 rounded-xl border border-gray-200/60 bg-gray-50/50">
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Angebote gesamt</p>
+            <p class="text-2xl font-extrabold text-gray-900 tabular-nums mt-0.5">{{ quote_conversion.total }}</p>
+        </div>
+        <div class="p-4 rounded-xl border border-gray-200/60 bg-emerald-50/50">
+            <p class="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">Angenommen</p>
+            <p class="text-2xl font-extrabold text-emerald-600 tabular-nums mt-0.5">{{ quote_conversion.accepted }}</p>
+            <p class="text-[11px] text-emerald-400 mt-0.5">{{ quote_conversion.accept_rate }}% Rate</p>
+        </div>
+        <div class="p-4 rounded-xl border border-gray-200/60 bg-red-50/50">
+            <p class="text-[11px] font-bold text-red-400 uppercase tracking-wider">Abgelehnt</p>
+            <p class="text-2xl font-extrabold text-red-500 tabular-nums mt-0.5">{{ quote_conversion.rejected }}</p>
+        </div>
+        <div class="p-4 rounded-xl border border-gray-200/60 bg-violet-50/50">
+            <p class="text-[11px] font-bold text-violet-500 uppercase tracking-wider">→ Rechnung</p>
+            <p class="text-2xl font-extrabold text-violet-600 tabular-nums mt-0.5">{{ quote_conversion.converted }}</p>
+            <p class="text-[11px] text-violet-400 mt-0.5">{{ quote_conversion.convert_rate }}% konvertiert</p>
+        </div>
+    </div>
+
+    
+    {% if quote_conversion.avg_quote_net > 0 and quote_conversion.avg_invoice_net > 0 %}
+    <div class="flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-gray-200/60">
+        <div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ø Angebotswert</p>
+            <p class="text-lg font-extrabold text-gray-900 tabular-nums">{{ quote_conversion.avg_quote_net|format_euro }} €</p>
+        </div>
+        <svg class="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        <div>
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ø Rechnungswert</p>
+            <p class="text-lg font-extrabold text-gray-900 tabular-nums">{{ quote_conversion.avg_invoice_net|format_euro }} €</p>
+        </div>
+        <div class="ml-auto">
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Werterhalt</p>
+            <p class="text-lg font-extrabold tabular-nums {{ 'text-emerald-600' if quote_conversion.value_retention >= 90 else ('text-amber-500' if quote_conversion.value_retention >= 70 else 'text-red-500') }}">{{ quote_conversion.value_retention }}%</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+{% if doc_durations %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-5">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+        </div>
+        Dokumenten-Durchlaufzeit
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-{{ doc_durations|length }} gap-4 mb-5">
+        {% for dd in doc_durations %}
+        <div class="p-4 rounded-xl border border-gray-200/60 bg-gray-50/50">
+            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{{ dd.label }}</p>
+            <p class="text-2xl font-extrabold tabular-nums {% if dd.avg_days > 30 %}text-red-500{% elif dd.avg_days > 14 %}text-amber-500{% else %}text-gray-900{% endif %}">
+                {{ dd.avg_days }} <span class="text-sm font-bold text-gray-400">Tage</span>
+            </p>
+            <p class="text-[11px] text-gray-400 mt-0.5">{{ dd.count }} Dokumente</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if slow_payers %}
+    <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Langsamste Zahler</h3>
+    <div class="space-y-2">
+        {% for sp in slow_payers %}
+        <a href="{{ url_for('contact_view', id=sp.contact.id) }}"
+           class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition-all duration-200 group">
+            <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <span class="text-gray-500 text-[10px] font-bold">{{ sp.contact.display_name[0:2]|upper }}</span>
+                </div>
+                <span class="text-sm font-medium text-gray-700 group-hover:text-petrol-600 transition-colors">{{ sp.contact.display_name }}</span>
+            </div>
+            <div class="text-right">
+                <span class="text-sm font-bold tabular-nums {% if sp.avg_days > 30 %}text-red-500{% elif sp.avg_days > 14 %}text-amber-500{% else %}text-gray-700{% endif %}">
+                    Ø {{ sp.avg_days }} Tage
+                </span>
+                <span class="text-[11px] text-gray-400 ml-1">({{ sp.count }}x)</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+{% if interaction_stats %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-6">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-cyan-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg>
+        </div>
+        Interaktions-Analyse
+    </h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <div>
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Nach Typ</h3>
+            <div class="space-y-2.5">
+                {% set max_count = interaction_stats[0][1] if interaction_stats else 1 %}
+                {% for typ, cnt in interaction_stats %}
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-right">
+                        <span class="text-sm font-medium text-gray-700">{{ typ }}</span>
+                    </div>
+                    <div class="flex-1 h-6 bg-gray-100 rounded-lg overflow-hidden">
+                        <div class="h-full bg-cyan-400 rounded-lg flex items-center transition-all duration-500"
+                             style="width: {{ (cnt / max_count * 100)|round }}%">
+                            <span class="text-[11px] font-bold text-white px-2 drop-shadow-sm">{{ cnt }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        
+        <div>
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Letzte 6 Monate</h3>
+            <div class="flex items-end gap-2 h-32">
+                {% for m in interaction_monthly %}
+                <div class="flex-1 flex flex-col items-center justify-end h-full">
+                    <span class="text-[10px] font-bold text-gray-500 tabular-nums mb-1">{{ m.count }}</span>
+                    <div class="w-full bg-cyan-400 rounded-t-md transition-all duration-500"
+                         style="height: {{ (m.count / max_interactions * 100)|round }}%{% if m.count == 0 %}; min-height: 2px{% endif %}">
+                    </div>
+                    <span class="text-[10px] text-gray-400 mt-1.5 font-medium">{{ m.label_short }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    
+    {% if interaction_win_rates %}
+    <div class="mt-6 pt-5 border-t border-gray-100">
+        <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Win-Rate nach Interaktionstyp</h3>
+        <div class="overflow-hidden rounded-xl border border-gray-200/60">
+            <table class="min-w-full divide-y divide-gray-100">
+                <thead>
+                    <tr class="bg-gray-50/80">
+                        <th class="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Typ</th>
+                        <th class="px-4 py-2.5 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Kontakte</th>
+                        <th class="px-4 py-2.5 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Gewonnen</th>
+                        <th class="px-4 py-2.5 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Win-Rate</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100/80">
+                    {% for iw in interaction_win_rates %}
+                    <tr class="hover:bg-petrol-50/30 transition-all duration-150">
+                        <td class="px-4 py-2.5">
+                            <span class="text-sm font-medium text-gray-700">{{ iw.typ }}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <span class="text-sm text-gray-600 tabular-nums">{{ iw.contacts }}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <span class="text-sm font-bold text-emerald-600 tabular-nums">{{ iw.won }}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <span class="text-sm font-bold tabular-nums {{ 'text-emerald-600' if iw.rate >= 30 else ('text-amber-500' if iw.rate >= 15 else 'text-gray-500') }}">
+                                {{ iw.rate }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if stuck_contacts %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 hover:shadow-md transition-shadow duration-300 fade-up delay-3">
+    <h2 class="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+        </div>
+        Stuck Contacts
+        <span class="text-[11px] text-gray-400 font-normal ml-1">(länger als 2x Durchschnitt in aktueller Stage)</span>
+    </h2>
+
+    <div class="space-y-2">
+        {% for sc in stuck_contacts %}
+        <a href="{{ url_for('contact_view', id=sc.contact.id) }}"
+           class="flex items-center justify-between p-3 rounded-xl hover:bg-red-50/50 transition-all duration-200 group">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <span class="text-red-600 text-[10px] font-bold">{{ sc.contact.display_name[0:2]|upper }}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-900 group-hover:text-petrol-600 transition-colors">{{ sc.contact.display_name }}</p>
+                    <p class="text-[11px] text-gray-400">Stage: {{ sc.stage_label }}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-sm font-bold text-red-500 tabular-nums">{{ sc.days_in }} Tage</span>
+                <p class="text-[11px] text-gray-400">Durchschn.: {{ sc.avg }} Tage</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    
+    <script>
+    (function(){
+        var t = localStorage.getItem('stellwerk-theme');
+        var sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (t === 'dark' || (!t && sys)) document.documentElement.classList.add('dark');
+    })();
+    </script>
+    
+    <script>
+    (function(){
+        var s = localStorage.getItem('stellwerk-sidebar');
+        if (s === 'collapsed') document.documentElement.classList.add('sidebar-collapsed');
+    })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stellwerk{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <script src="{{ url_for('static', filename='vendor/tailwind-3.4.17.js') }}"></script>
+    <script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Lato', 'system-ui', '-apple-system', 'sans-serif'],
+                    headline: ['Montserrat', 'system-ui', 'sans-serif'],
+                },
+                colors: {
+                    petrol: {
+                        50:  '#e6f4f5',
+                        100: '#c0e3e6',
+                        200: '#8fcad0',
+                        300: '#5db0ba',
+                        400: '#2e97a3',
+                        500: '#00707A',
+                        600: '#005a62',
+                        700: '#00464d',
+                        800: '#003238',
+                        900: '#001e22',
+                    },
+                    gold: {
+                        50:  '#fdf8ec',
+                        100: '#f9edcc',
+                        200: '#f0d88e',
+                        300: '#e8c350',
+                        400: '#d9a33c',
+                        500: '#C5A944',
+                        DEFAULT: '#C5A944',
+                    },
+                    navy: {
+                        DEFAULT: '#202C59',
+                        dark: '#161f3e',
+                        light: '#2d3d7a',
+                    }
+                },
+            }
+        }
+    }
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.5/dist/cdn.min.js" integrity="sha384-FYLKjwG3aohNhNZoVG8sY/5ntunm+MqylL90Q+rT3OM7AwV9/BKFjk/RjoIpIgsI" crossorigin="anonymous"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+
+        .brand-bar {
+            background: linear-gradient(90deg, #00707A 0%, #167986 55%, #C5A944 100%);
+        }
+
+        #sidebar {
+            width: 224px;
+            transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #main-wrapper {
+            margin-left: 224px;
+            transition: margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sidebar-collapsed #sidebar {
+            width: 56px;
+        }
+        .sidebar-collapsed #main-wrapper {
+            margin-left: 56px;
+        }
+        .sidebar-label {
+            transition: opacity 0.15s ease, width 0.25s ease;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-collapsed .sidebar-label {
+            opacity: 0;
+            width: 0;
+            pointer-events: none;
+        }
+        #collapse-chevron {
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            flex-shrink: 0;
+        }
+        .sidebar-collapsed #collapse-chevron {
+            transform: rotate(180deg);
+        }
+        @media (max-width: 767px) {
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                            width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                width: 224px !important;
+            }
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            #main-wrapper,
+            .sidebar-collapsed #main-wrapper {
+                margin-left: 0 !important;
+            }
+        }
+
+        .bg-dots {
+            background-color: #f4f7f8;
+            background-image: radial-gradient(#d0dfe0 0.6px, transparent 0.6px);
+            background-size: 18px 18px;
+        }
+
+        .dark .bg-dots {
+            background-color: #0c1220;
+            background-image: radial-gradient(#1a2438 0.6px, transparent 0.6px);
+        }
+
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: none; }
+        }
+        .fade-up { animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .delay-1 { animation-delay: 50ms; }
+        .delay-2 { animation-delay: 100ms; }
+        .delay-3 { animation-delay: 150ms; }
+        .delay-4 { animation-delay: 200ms; }
+        .delay-5 { animation-delay: 250ms; }
+        .delay-6 { animation-delay: 300ms; }
+        .delay-7 { animation-delay: 350ms; }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        .fade-in { animation: fade-in 0.35s ease-out both; }
+
+        .hover-lift {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+        }
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px -6px rgba(0, 112, 122, 0.18);
+        }
+
+        .sidebar-nav-active {
+            background-color: rgba(0, 112, 122, 0.1);
+            color: #005a62;
+        }
+        .dark .sidebar-nav-active {
+            background-color: rgba(0, 112, 122, 0.2);
+            color: #3ecad6;
+        }
+        .sidebar-nav-active .sidebar-nav-icon {
+            color: #00707A;
+        }
+        .dark .sidebar-nav-active .sidebar-nav-icon {
+            color: #3ecad6;
+        }
+
+        @keyframes slide-in-down {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-in-down { animation: slide-in-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #8fcad0; border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00707A; }
+        .dark ::-webkit-scrollbar-thumb { background: #253048; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #3db8c4; }
+
+        @keyframes pulse-ring {
+            0%   { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background: inherit;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        *:focus-visible { outline: 2px solid #00707A; outline-offset: 2px; }
+
+        .font-headline { font-family: 'Montserrat', system-ui, sans-serif; }
+        .text-gold  { color: #C5A944; }
+        .bg-gold    { background-color: #C5A944; }
+
+        #cmd-palette {
+            transition: opacity 0.15s ease;
+        }
+        #cmd-palette.hidden { opacity: 0; pointer-events: none; }
+        .cmd-item-selected {
+            background-color: rgba(0, 112, 122, 0.08) !important;
+        }
+        .dark .cmd-item-selected {
+            background-color: rgba(0, 112, 122, 0.18) !important;
+        }
+
+
+        .dark #sidebar {
+            background-color: #0e1825 !important;
+            border-color: #1e2d41 !important;
+        }
+        .dark #sidebar .sidebar-search-btn {
+            background-color: #162030 !important;
+            border-color: #1e2d41 !important;
+            color: #5a7a95 !important;
+        }
+        .dark #sidebar .sidebar-search-btn:hover {
+            border-color: #2e97a3 !important;
+            color: #3ecad6 !important;
+        }
+        .dark #sidebar .sidebar-bottom-divider {
+            border-color: #1e2d41 !important;
+        }
+        .dark #sidebar a:not(.sidebar-nav-active):hover,
+        .dark #sidebar button:not(.sidebar-nav-active):hover {
+            background-color: rgba(22, 32, 48, 0.8) !important;
+            color: #d4dff0 !important;
+        }
+        .dark #mobile-header {
+            background-color: #0e1825 !important;
+            border-color: #1e2d41 !important;
+        }
+        .dark #cmd-dialog {
+            background-color: #162030 !important;
+            border-color: #1e2d41 !important;
+        }
+        .dark #cmd-input {
+            color: #d4dff0 !important;
+            background-color: transparent !important;
+        }
+        .dark #cmd-input::placeholder { color: #3d5a70 !important; }
+        .dark #cmd-results-header { color: #5a7a95 !important; }
+        .dark .cmd-item:hover { background-color: rgba(0,112,122,0.12) !important; }
+        .dark .cmd-status-badge { background-color: #1c2a3a !important; color: #5a7a95 !important; }
+
+        .dark .bg-white          { background-color: #162030 !important; }
+        .dark .bg-gray-50        { background-color: #0e1825 !important; }
+        .dark .bg-gray-100       { background-color: #1c2a3a !important; }
+        .dark .bg-gray-200       { background-color: #243040 !important; }
+
+        .dark .border-gray-200   { border-color: #1e2d41 !important; }
+        .dark .border-gray-100   { border-color: #172233 !important; }
+        .dark .ring-gray-200     { --tw-ring-color: #1e2d41 !important; }
+
+        .dark .divide-gray-100 > * + *   { border-color: #172233 !important; }
+        .dark .divide-y > * + *           { border-color: #172233 !important; }
+
+        .dark .text-gray-900     { color: #e8f0fe !important; }
+        .dark .text-gray-800     { color: #d4dff0 !important; }
+        .dark .text-gray-700     { color: #b8cce0 !important; }
+        .dark .text-gray-600     { color: #7a9ab5 !important; }
+        .dark .text-gray-500     { color: #9bb5c8 !important; }
+        .dark .text-gray-400     { color: #8daabe !important; }
+        .dark .text-gray-300     { color: #7d9cb2 !important; }
+        .dark .text-navy         { color: #7ea8d0 !important; }
+
+        .dark .bg-gray-50\/80    { background-color: rgba(14, 24, 37, 0.85) !important; }
+        .dark .bg-gray-50\/95    { background-color: rgba(14, 24, 37, 0.95) !important; }
+        .dark .bg-white\/70      { background-color: rgba(22, 32, 48, 0.7) !important; }
+        .dark .bg-white\/95      { background-color: rgba(22, 32, 48, 0.95) !important; }
+
+        .dark .hover\:bg-petrol-50\/30:hover  { background-color: rgba(0,112,122,0.10) !important; }
+        .dark .hover\:bg-indigo-50\/30:hover  { background-color: rgba(0,112,122,0.10) !important; }
+        .dark .hover\:bg-gray-50\/50:hover    { background-color: rgba(14,24,37,0.5) !important; }
+        .dark .hover\:bg-gray-50:hover        { background-color: #162030 !important; }
+        .dark .hover\:bg-gray-100:hover       { background-color: #1c2a3a !important; }
+        .dark .hover\:bg-gray-200:hover       { background-color: #243040 !important; }
+        .dark .hover\:bg-petrol-50\/60:hover  { background-color: rgba(0,112,122,0.12) !important; }
+        .dark .hover\:shadow-md:hover         { box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important; }
+        .dark .shadow-sm                      { box-shadow: 0 1px 4px rgba(0,0,0,0.4) !important; }
+
+        .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+        .dark select,
+        .dark textarea {
+            background-color: #1c2a3a !important;
+            border-color: #1e2d41 !important;
+            color: #d4dff0 !important;
+        }
+        .dark input::placeholder,
+        .dark textarea::placeholder { color: #3d5a70 !important; }
+        .dark input:focus,
+        .dark select:focus,
+        .dark textarea:focus {
+            border-color: #00707A !important;
+            box-shadow: 0 0 0 3px rgba(0,112,122,0.2) !important;
+        }
+
+        .dark .bg-petrol-50       { background-color: rgba(0,112,122,0.15) !important; }
+        .dark .bg-petrol-100      { background-color: rgba(0,112,122,0.25) !important; }
+        .dark .text-petrol-600    { color: #3ecad6 !important; }
+        .dark .text-petrol-700    { color: #2eb8c4 !important; }
+        .dark .border-petrol-200  { border-color: rgba(0,112,122,0.35) !important; }
+        .dark .ring-petrol-500\/20 { --tw-ring-color: rgba(0,112,122,0.2) !important; }
+
+        .dark .bg-amber-50     { background-color: rgba(197,169,68,0.14) !important; }
+        .dark .text-amber-700  { color: #d4b04a !important; }
+        .dark .text-amber-600  { color: #c4a040 !important; }
+        .dark .bg-amber-400    { background-color: #b8943a !important; }
+        .dark .border-amber-400 { border-color: #b8943a !important; }
+
+        .dark .border-l-amber-400  { border-color: #c4a040 !important; }
+        .dark .border-l-red-500    { border-color: #c04040 !important; }
+        .dark .bg-amber-50\/50     { background-color: rgba(197,169,68,0.12) !important; }
+        .dark .bg-red-50\/70       { background-color: rgba(192, 64, 64, 0.18) !important; }
+        .dark .text-red-800        { color: #f87171 !important; }
+        .dark .bg-red-500          { background-color: #b83030 !important; }
+        .dark .bg-red-500\/90      { background-color: rgba(184,48,48,0.9) !important; }
+
+        .dark .bg-teal-50    { background-color: rgba(20, 184, 166, 0.12) !important; }
+        .dark .text-teal-700 { color: #2dd4bf !important; }
+        .dark .text-teal-600 { color: #14b8a6 !important; }
+        .dark .text-teal-500 { color: #0d9488 !important; }
+        .dark .border-l-teal-400 { border-color: #0d9488 !important; }
+
+        .dark .bg-emerald-50    { background-color: rgba(5,150,105,0.12) !important; }
+        .dark .text-emerald-700 { color: #34d399 !important; }
+        .dark .text-emerald-600 { color: #2ec989 !important; }
+        .dark .bg-emerald-500   { background-color: #0e9e70 !important; }
+        .dark .bg-emerald-400   { background-color: #0c8a62 !important; }
+        .dark .border-emerald-200 { border-color: rgba(5,150,105,0.3) !important; }
+
+        .dark .bg-sky-50       { background-color: rgba(2,132,199,0.12) !important; }
+        .dark .bg-sky-100      { background-color: rgba(2,132,199,0.2) !important; }
+        .dark .text-sky-700    { color: #38bdf8 !important; }
+        .dark .text-sky-600    { color: #2aaee8 !important; }
+
+        .dark .bg-red-50    { background-color: rgba(220,38,38,0.1) !important; }
+        .dark .text-red-700 { color: #f87171 !important; }
+        .dark .text-red-600 { color: #f07070 !important; }
+        .dark .text-red-500 { color: #e85a5a !important; }
+
+        .dark .bg-violet-50    { background-color: rgba(124,58,237,0.1) !important; }
+        .dark .text-violet-700 { color: #a78bfa !important; }
+
+        .dark .bg-orange-50    { background-color: rgba(234,88,12,0.1) !important; }
+        .dark .text-orange-700 { color: #fb923c !important; }
+
+        .dark .bg-blue-50    { background-color: rgba(59,130,246,0.1) !important; }
+        .dark .text-blue-700 { color: #60a5fa !important; }
+
+        .dark .bg-white.rounded-2xl { background-color: #162030 !important; }
+
+        .dark tr.hover\:bg-gray-50\/30:hover,
+        .dark tr:hover td { background-color: rgba(14, 24, 37, 0.6) !important; }
+        .dark thead .bg-gray-50\/80,
+        .dark thead tr { background-color: rgba(14, 24, 37, 0.85) !important; }
+
+        @media print {
+            #sidebar, #mobile-header, .sidebar-label, .sidebar-badge,
+            #shortcuts-help, #cmd-palette, .fade-up, .delay-1, .delay-2,
+            button[onclick="window.print()"], .print\:hidden,
+            nav, .no-print { display: none !important; }
+
+            #main-wrapper {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 12pt !important;
+            }
+            .bg-white, .bg-gray-50, .bg-gray-100 {
+                background: white !important;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+            .rounded-2xl { border-radius: 4px !important; }
+            .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
+
+            a { color: inherit !important; text-decoration: none !important; }
+            .text-petrol-500, .text-petrol-600, .text-petrol-700 { color: #00707A !important; }
+
+            table { border-collapse: collapse !important; width: 100% !important; }
+            th, td { border: 1px solid #ddd !important; padding: 6px 8px !important; }
+            thead { background: #f5f5f5 !important; }
+
+            .page-break { page-break-after: always; }
+            h1 { font-size: 18pt !important; }
+            h2 { font-size: 14pt !important; }
+        }
+    </style>
+</head>
+<body class="bg-dots min-h-screen font-sans text-gray-900 antialiased">
+
+    
+    <aside id="sidebar"
+           class="fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-gray-200/60 shadow-sm overflow-hidden">
+
+        
+        <div class="flex items-center gap-2.5 px-3.5 h-14 flex-shrink-0">
+            <a href="{{ url_for('dashboard') }}" class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-petrol-500 flex items-center justify-center shadow-md shadow-petrol-500/30 flex-shrink-0 relative overflow-hidden">
+                    <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-gold rounded-bl-lg opacity-80"></span>
+                    <svg class="w-4 h-4 text-white relative z-10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+                    </svg>
+                </div>
+                <span class="sidebar-label font-headline text-[15px] font-bold tracking-tight text-navy dark:text-petrol-300">Stellwerk</span>
+            </a>
+        </div>
+
+        
+        <div class="brand-bar h-[2px] flex-shrink-0"></div>
+
+        
+        <div class="px-2.5 pt-3 pb-1 flex-shrink-0">
+            <button onclick="openCommandPalette()"
+                    title="Suchen (Ctrl+K)"
+                    class="sidebar-search-btn w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-50 border border-gray-200/70 text-gray-400 hover:border-petrol-300 hover:text-petrol-600 transition-all duration-200 text-xs group">
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                </svg>
+                <span class="sidebar-label flex-1 text-left">Suchen...</span>
+                <kbd class="sidebar-label hidden group-hover:inline text-[10px] bg-white border border-gray-200/80 rounded px-1 leading-5 text-gray-400">⌘K</kbd>
+            </button>
+        </div>
+
+        
+        <div class="sidebar-label px-2.5 pb-2 flex-shrink-0">
+            <form action="{{ url_for('global_search') }}" method="get" class="relative">
+                <svg class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                </svg>
+                <input type="search" name="q" value="{{ request.args.get('q', '') if request.endpoint == 'global_search' else '' }}"
+                       placeholder="Alles durchsuchen…"
+                       class="w-full pl-8 pr-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200/70 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-petrol-300 focus:ring-1 focus:ring-petrol-200 transition-colors">
+            </form>
+        </div>
+
+        
+        <nav class="flex-1 overflow-y-auto px-2.5 py-1 space-y-0.5">
+            {% set nav_items = [
+                ('dashboard', 'Dashboard', 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z', ['dashboard']),
+                ('contacts', 'Kontakte', 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', ['contacts', 'contact_new', 'contact_edit', 'contact_view', 'contacts_filter']),
+                ('pipeline', 'Pipeline', 'M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25', ['pipeline']),
+                ('board', 'Board', 'M9 4.5v15m6-15v15M3.75 9h16.5M3.75 15h16.5', ['board', 'board_task_new', 'board_task_view']),
+                ('mandate', 'Mandate', 'M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z', ['mandate']),
+                ('content_calendar_bp.content_calendar', 'Content', 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5', ['content_calendar_bp.content_calendar', 'content_calendar_bp.content_calendar_new', 'content_calendar_bp.content_calendar_view']),
+                ('timetracking', 'Zeit', 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', ['timetracking']),
+                ('abrechnung', 'Abrechnung', 'M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z', ['abrechnung', 'abrechnung_profitabilitaet']),
+                ('documents', 'Dokumente', 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z', ['documents', 'document_new', 'document_edit', 'document_view']),
+                ('incoming_invoices', 'Ausgaben', 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z', ['incoming_invoices', 'incoming_invoice_new', 'incoming_invoice_view', 'incoming_invoice_edit']),
+                ('bank', 'Bank', 'M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z', ['bank']),
+                ('sales_goals', 'Goals', 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z', ['sales_goals']),
+                ('analytics', 'Analytics', 'M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z', ['analytics']),
+                ('monthly_report', 'Report', 'M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605', ['monthly_report']),
+                ('email_templates', 'Templates', 'M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75', ['email_templates', 'email_template_new', 'email_template_edit']),
+                ('services_bp.services', 'Leistungen', 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z', ['services_bp.services']),
+                ('wiki', 'Wiki', 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25', ['wiki', 'wiki_page_view', 'wiki_page_new', 'wiki_page_edit', 'wiki_entry_view', 'wiki_entry_new', 'wiki_entry_edit']),
+            ] %}
+            {% for route, label, icon_path, endpoints in nav_items %}
+            <a href="{{ url_for(route) }}"
+               title="{{ label }}"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 group
+                      {% if request.endpoint in endpoints %}sidebar-nav-active{% else %}text-gray-500 hover:text-gray-700 hover:bg-gray-50{% endif %}">
+                <svg class="sidebar-nav-icon w-[18px] h-[18px] flex-shrink-0 {% if request.endpoint not in endpoints %}text-gray-400 group-hover:text-gray-600{% endif %}" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_path }}"/>
+                </svg>
+                <span class="sidebar-label flex-1">{{ label }}</span>
+                <span class="sidebar-label sidebar-badge hidden text-[10px] font-bold text-white bg-red-500 rounded-full min-w-[18px] h-[18px] flex items-center justify-center" data-badge="{{ route }}"></span>
+            </a>
+            {% endfor %}
+        </nav>
+
+        
+        <div class="sidebar-bottom-divider px-2.5 py-2 border-t border-gray-200/60 space-y-0.5 flex-shrink-0">
+            <a href="{{ url_for('followup_settings') }}"
+               title="Einstellungen"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      {% if request.endpoint == 'followup_settings' %}sidebar-nav-active{% else %}text-gray-400 hover:text-gray-600 hover:bg-gray-50{% endif %}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="sidebar-label">Einstellungen</span>
+            </a>
+            <a href="{{ url_for('export_data') }}"
+               title="Export"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      {% if request.endpoint == 'export_data' %}sidebar-nav-active{% else %}text-gray-400 hover:text-gray-600 hover:bg-gray-50{% endif %}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                </svg>
+                <span class="sidebar-label">Export</span>
+            </a>
+            <a href="{{ url_for('export_ea') }}"
+               title="EA-Export"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      {% if request.endpoint == 'export_ea' %}sidebar-nav-active{% else %}text-gray-400 hover:text-gray-600 hover:bg-gray-50{% endif %}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/>
+                </svg>
+                <span class="sidebar-label">EA-Export</span>
+            </a>
+            <a href="{{ url_for('import_data') }}"
+               title="Import"
+               class="flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      {% if request.endpoint == 'import_data' %}sidebar-nav-active{% else %}text-gray-400 hover:text-gray-600 hover:bg-gray-50{% endif %}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                </svg>
+                <span class="sidebar-label">Import</span>
+            </a>
+
+            
+            <button id="theme-toggle"
+                    onclick="toggleTheme()"
+                    title="Dark Mode umschalten"
+                    class="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200">
+                <svg id="icon-sun" class="w-[18px] h-[18px] flex-shrink-0 hidden" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+                </svg>
+                <svg id="icon-moon" class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
+                </svg>
+                <span class="sidebar-label" id="theme-label">Dark Mode</span>
+            </button>
+
+            
+            <button onclick="toggleSidebar()"
+                    title="Sidebar einklappen"
+                    class="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200">
+                <svg id="collapse-chevron" class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+                </svg>
+                <span class="sidebar-label">Einklappen</span>
+            </button>
+        </div>
+    </aside>
+
+    
+    <div id="mobile-overlay"
+         onclick="closeMobileSidebar()"
+         class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm hidden md:hidden"></div>
+
+    
+    <div id="main-wrapper" class="min-h-screen flex flex-col">
+
+        
+        <div id="mobile-header" class="md:hidden flex items-center justify-between h-14 px-4 bg-white border-b border-gray-200/60 sticky top-0 z-40">
+            <button onclick="openMobileSidebar()" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                </svg>
+            </button>
+            <span class="font-headline text-[15px] font-bold tracking-tight text-navy">Stellwerk</span>
+            <div class="flex items-center gap-1">
+            <div x-data="notificationBell()" x-init="load()" class="relative">
+                <button @click="open = !open" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors relative">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+                    <span x-show="total > 0" x-text="total" class="absolute -top-1 -right-1 w-4 h-4 text-[9px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center"></span>
+                </button>
+                <div x-show="open" x-cloak @click.outside="open = false" x-transition
+                     class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200/60 z-50 overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-gray-100">
+                        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Benachrichtigungen</span>
+                    </div>
+                    <template x-if="items.length === 0">
+                        <div class="p-4 text-center text-xs text-gray-400">Alles erledigt</div>
+                    </template>
+                    <template x-for="item in items" :key="item.label">
+                        <a :href="item.url" class="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+                            <div class="w-2 h-2 rounded-full flex-shrink-0"
+                                 :class="item.color === 'red' ? 'bg-red-500' : (item.color === 'amber' ? 'bg-amber-500' : 'bg-violet-500')"></div>
+                            <span class="text-xs text-gray-700" x-text="item.label"></span>
+                        </a>
+                    </template>
+                </div>
+            </div>
+            <button onclick="toggleTheme()" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                <svg id="mobile-icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+                </svg>
+                <svg id="mobile-icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
+                </svg>
+            </button>
+            </div>
+        </div>
+
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="px-4 sm:px-6 lg:px-8 mt-4 space-y-2">
+                {% for category, message in messages %}
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 -translate-y-3"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-3"
+                     class="slide-in-down flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium backdrop-blur-sm
+                            {% if category == 'error' %}bg-red-50/90 text-red-700 ring-1 ring-inset ring-red-600/10
+                            {% else %}bg-petrol-50/90 text-petrol-700 ring-1 ring-inset ring-petrol-500/20{% endif %}">
+                    {% if category == 'error' %}
+                    <svg class="w-5 h-5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>
+                    {% else %}
+                    <svg class="w-5 h-5 flex-shrink-0 text-petrol-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                    {% endif %}
+                    <span class="flex-1">{{ message }}</span>
+                    <button @click="show = false" class="text-current opacity-40 hover:opacity-70 transition-opacity">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <main class="flex-1 px-4 sm:px-6 lg:px-8 py-8">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    
+    <div id="cmd-palette"
+         class="hidden fixed inset-0 z-[100] flex items-start justify-center pt-[14vh]">
+        
+        <div onclick="closeCommandPalette()" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        
+        <div id="cmd-dialog"
+             class="relative w-full max-w-lg mx-4 bg-white rounded-2xl shadow-2xl border border-gray-200/60 overflow-hidden">
+            
+            <div class="flex items-center gap-3 px-4 py-3.5 border-b border-gray-200/60">
+                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+                </svg>
+                <input id="cmd-input"
+                       type="text"
+                       placeholder="Kontakt suchen…"
+                       oninput="cmdSearch(this.value)"
+                       onkeydown="cmdKeyDown(event)"
+                       autocomplete="off"
+                       class="flex-1 text-[15px] bg-transparent outline-none text-gray-800 placeholder-gray-400">
+                <kbd class="text-[11px] bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 text-gray-500 font-sans">Esc</kbd>
+            </div>
+            
+            <div id="cmd-results" class="max-h-[320px] overflow-y-auto py-1.5">
+                <div id="cmd-results-header" class="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Zuletzt besucht</div>
+                <div id="cmd-results-list"></div>
+                <div id="cmd-empty" class="hidden px-4 py-8 text-center text-sm text-gray-400">Keine Ergebnisse</div>
+            </div>
+            
+            <div class="flex items-center gap-3 px-4 py-2 border-t border-gray-100 bg-gray-50/60">
+                <span class="text-[11px] text-gray-400 flex items-center gap-1">
+                    <kbd class="bg-white border border-gray-200 rounded px-1 font-sans text-[10px]">↑↓</kbd> Navigieren
+                </span>
+                <span class="text-[11px] text-gray-400 flex items-center gap-1">
+                    <kbd class="bg-white border border-gray-200 rounded px-1 font-sans text-[10px]">↵</kbd> Öffnen
+                </span>
+                <span class="text-[11px] text-gray-400 flex items-center gap-1 ml-auto">
+                    <kbd class="bg-white border border-gray-200 rounded px-1 font-sans text-[10px]">Esc</kbd> Schließen
+                </span>
+            </div>
+        </div>
+    </div>
+
+    
+    <div x-data="globalTimer()" x-init="checkTimer(); setInterval(() => checkTimer(), 30000)"
+         x-show="active" x-cloak
+         class="fixed bottom-4 right-4 z-50">
+        <a href="/timetracking"
+           class="flex items-center gap-2 px-3 py-2 bg-white rounded-xl shadow-lg border border-petrol-200 hover:shadow-xl transition-all duration-200">
+            <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-petrol-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-petrol-500"></span>
+            </span>
+            <span class="text-xs font-semibold text-gray-700" x-text="label"></span>
+            <span class="text-xs font-bold text-petrol-600 tabular-nums" x-text="elapsed"></span>
+        </a>
+    </div>
+
+    <script>
+    function syncThemeIcons() {
+        const dark = document.documentElement.classList.contains('dark');
+        document.getElementById('icon-sun').classList.toggle('hidden', !dark);
+        document.getElementById('icon-moon').classList.toggle('hidden', dark);
+        document.getElementById('mobile-icon-sun').classList.toggle('hidden', !dark);
+        document.getElementById('mobile-icon-moon').classList.toggle('hidden', dark);
+        document.getElementById('theme-label').textContent = dark ? 'Light Mode' : 'Dark Mode';
+    }
+    function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('stellwerk-theme', isDark ? 'dark' : 'light');
+        syncThemeIcons();
+    }
+    document.addEventListener('DOMContentLoaded', syncThemeIcons);
+
+    function toggleSidebar() {
+        const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('stellwerk-sidebar', collapsed ? 'collapsed' : 'expanded');
+    }
+
+    function openMobileSidebar() {
+        document.getElementById('sidebar').classList.add('mobile-open');
+        document.getElementById('mobile-overlay').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeMobileSidebar() {
+        document.getElementById('sidebar').classList.remove('mobile-open');
+        document.getElementById('mobile-overlay').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, ch => (
+            {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+    }
+
+    let cmdIndex = -1;
+    let cmdData  = [];
+
+    function openCommandPalette() {
+        document.getElementById('cmd-palette').classList.remove('hidden');
+        document.getElementById('cmd-input').focus();
+        document.getElementById('cmd-input').value = '';
+        cmdSearch('');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeCommandPalette() {
+        document.getElementById('cmd-palette').classList.add('hidden');
+        document.body.style.overflow = '';
+        cmdIndex = -1;
+    }
+
+    function cmdSearch(q) {
+        fetch('/api/contacts/search?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                cmdData = data;
+                cmdIndex = -1;
+                renderCmdResults(data, q);
+            })
+            .catch(() => {});
+    }
+
+    const STATUS_LABELS = {
+        'new': 'Neu', 'contacted': 'Kontaktiert', 'qualified': 'Qualifiziert',
+        'proposal': 'Angebot', 'negotiation': 'Verhandlung', 'won': 'Gewonnen', 'lost': 'Verloren',
+        'on_hold': 'Auf Hold'
+    };
+
+    const TYPE_COLORS = {
+        'contact':  'bg-petrol-100/80 text-petrol-600',
+        'document': 'bg-violet-100/80 text-violet-600',
+        'task':     'bg-amber-100/80 text-amber-600',
+    };
+    const TYPE_LABELS = { 'contact': '', 'document': 'Dokument', 'task': 'Task' };
+
+    function renderCmdResults(data, q) {
+        const header = document.getElementById('cmd-results-header');
+        const list   = document.getElementById('cmd-results-list');
+        const empty  = document.getElementById('cmd-empty');
+
+        header.textContent = q ? 'Ergebnisse' : 'Zuletzt besucht';
+
+        if (!data.length) {
+            list.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+
+        list.innerHTML = data.map((c, i) => `
+            <a href="${escapeHtml(c.url)}" onclick="closeCommandPalette()"
+               data-cmd-index="${i}"
+               class="cmd-item flex items-center gap-3 px-4 py-2.5 hover:bg-petrol-50/60 transition-colors cursor-pointer">
+                <div class="w-8 h-8 rounded-lg ${TYPE_COLORS[c.type] || 'bg-petrol-100/80 text-petrol-600'} flex items-center justify-center text-sm font-bold flex-shrink-0">${escapeHtml(c.initial)}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(c.name)}</div>
+                    ${c.sub ? `<div class="text-xs text-gray-400 truncate">${escapeHtml(c.sub)}</div>` : ''}
+                </div>
+                ${TYPE_LABELS[c.type] ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-400 flex-shrink-0">${TYPE_LABELS[c.type]}</span>` : ''}
+                <span class="cmd-status-badge text-[11px] px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 flex-shrink-0">${escapeHtml(STATUS_LABELS[c.status] || c.status)}</span>
+            </a>
+        `).join('');
+    }
+
+    function cmdSetSelection(idx) {
+        const items = document.querySelectorAll('.cmd-item');
+        items.forEach((el, i) => {
+            el.classList.toggle('cmd-item-selected', i === idx);
+        });
+        if (items[idx]) {
+            items[idx].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function cmdKeyDown(e) {
+        const items = document.querySelectorAll('.cmd-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            cmdIndex = Math.min(cmdIndex + 1, items.length - 1);
+            cmdSetSelection(cmdIndex);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            cmdIndex = Math.max(cmdIndex - 1, 0);
+            cmdSetSelection(cmdIndex);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (cmdIndex >= 0 && cmdData[cmdIndex]) {
+                window.location.href = cmdData[cmdIndex].url;
+                closeCommandPalette();
+            } else {
+                const q = document.getElementById('cmd-input').value.trim();
+                if (q) {
+                    window.location.href = '/contacts?search=' + encodeURIComponent(q);
+                    closeCommandPalette();
+                }
+            }
+        } else if (e.key === 'Escape') {
+            closeCommandPalette();
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        const tag = document.activeElement?.tagName;
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable;
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const palette = document.getElementById('cmd-palette');
+            if (palette.classList.contains('hidden')) {
+                openCommandPalette();
+            } else {
+                closeCommandPalette();
+            }
+            return;
+        }
+
+        if (e.altKey && !e.ctrlKey && !e.metaKey) {
+            switch(e.key) {
+                case 'n': e.preventDefault(); window.location.href = '/contacts/new'; break;
+                case 'a': e.preventDefault(); window.location.href = '/documents/new?type=quote'; break;
+                case 'r': e.preventDefault(); window.location.href = '/documents/new?type=invoice'; break;
+                case 't': e.preventDefault(); window.location.href = '/board/tasks/new'; break;
+                case 'd': e.preventDefault(); window.location.href = '/'; break;
+            }
+            return;
+        }
+
+        if (!isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            switch(e.key) {
+                case '?':
+                    e.preventDefault();
+                    const help = document.getElementById('shortcuts-help');
+                    if (help) help.classList.toggle('hidden');
+                    break;
+            }
+        }
+    });
+
+    function globalTimer() {
+        return {
+            active: false,
+            label: '',
+            elapsed: '0:00',
+            timerStart: null,
+            interval: null,
+            checkTimer() {
+                fetch('/timetracking/timer/status')
+                    .then(r => r.json())
+                    .then(data => {
+                        this.active = data.active;
+                        if (data.active) {
+                            this.label = data.contact_name || data.taetigkeit;
+                            this.timerStart = new Date(data.timer_start + 'Z');
+                            if (!this.interval) {
+                                this.interval = setInterval(() => this.updateElapsed(), 1000);
+                            }
+                        } else {
+                            if (this.interval) { clearInterval(this.interval); this.interval = null; }
+                        }
+                    }).catch(() => {});
+            },
+            updateElapsed() {
+                if (!this.timerStart) return;
+                const diff = Math.floor((Date.now() - this.timerStart.getTime()) / 1000);
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                this.elapsed = h > 0
+                    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                    : `${m}:${String(s).padStart(2,'0')}`;
+            }
+        }
+    }
+    </script>
+
+    <script>
+    function _updateSidebarBadges(badges) {
+        document.querySelectorAll('[data-badge]').forEach(el => {
+            const route = el.dataset.badge;
+            const count = badges[route];
+            if (count > 0) {
+                el.textContent = count;
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
+    function notificationBell() {
+        return {
+            open: false, total: 0, items: [],
+            load() {
+                fetch('/api/notifications').then(r => r.json()).then(d => {
+                    this.total = d.total; this.items = d.items;
+                    if (d.badges) _updateSidebarBadges(d.badges);
+                });
+                setInterval(() => {
+                    fetch('/api/notifications').then(r => r.json()).then(d => {
+                        this.total = d.total; this.items = d.items;
+                        if (d.badges) _updateSidebarBadges(d.badges);
+                    });
+                }, 120000);
+            }
+        }
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+
+    
+    <div id="shortcuts-help" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm" onclick="if(event.target===this) this.classList.add('hidden')">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-gray-900">Tastenkürzel</h3>
+                <button onclick="document.getElementById('shortcuts-help').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between"><span class="text-gray-600">Suche</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Ctrl+K</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Neuer Kontakt</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Alt+N</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Neues Angebot</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Alt+A</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Neue Rechnung</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Alt+R</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Neuer Task</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Alt+T</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Dashboard</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Alt+D</kbd></div>
+                <hr class="border-gray-100">
+                <div class="flex justify-between"><span class="text-gray-600">Speichern (Formulare)</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Ctrl+S</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Kommentar senden</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">Ctrl+↵</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">Diese Hilfe</span><kbd class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-500">?</kbd></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

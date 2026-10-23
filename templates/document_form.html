@@ -1,0 +1,933 @@
+{% extends "base.html" %}
+{% block title %}{% if document %}{{ document.type_label }} {{ document.number }} bearbeiten{% else %}{{ 'Angebot' if doc_type == 'quote' else 'Rechnung' }} erstellen{% endif %} - Stellwerk{% endblock %}
+
+{% block content %}
+<div x-data="documentEditor()" class="fade-up">
+    
+    <div class="mb-4">
+        <a href="{{ url_for('documents') }}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 font-medium transition-colors group">
+            <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Dokumente
+        </a>
+    </div>
+
+    
+    <template x-if="hasRecovery">
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between slide-in-down sticky top-2 z-40 shadow-md">
+            <div class="flex items-center gap-2 text-sm text-amber-800">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                Ungespeicherter Entwurf gefunden
+            </div>
+            <div class="flex gap-2">
+                <button @click="restoreAutoSave()" class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors">Wiederherstellen</button>
+                <button @click="discardAutoSave()" class="px-3 py-1 text-amber-600 text-xs font-semibold hover:text-amber-800 transition-colors">Verwerfen</button>
+            </div>
+        </div>
+    </template>
+
+    
+    <div class="mb-6 flex justify-between items-center sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm py-3 -mx-4 px-4">
+        <div>
+            <h1 class="font-headline text-2xl font-bold tracking-tight">
+                {% if document %}
+                {{ document.type_label }} {{ document.number }} bearbeiten
+                {% else %}
+                <span x-text="docType === 'quote' ? 'Neues Angebot' : 'Neue Rechnung'"></span>
+                {% endif %}
+            </h1>
+            <p class="text-sm text-gray-400 mt-0.5">
+                {% if document %}
+                Entwurf bearbeiten
+                {% else %}
+                <span x-text="docType === 'quote' ? 'Angebot mit Positionen erstellen' : 'Rechnung mit Positionen erstellen'"></span>
+                {% endif %}
+                <span x-show="autoSaveStatus" class="ml-2 text-emerald-500 text-[11px]" x-text="autoSaveStatus" x-transition></span>
+            </p>
+        </div>
+        <div class="flex gap-2 items-center">
+            
+            <button @click="toggleAllGroups()" class="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-1" title="Alle Gruppen zu-/aufklappen">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>
+                <span x-text="groups.every(g => g._collapsed) ? 'Alle aufklappen' : 'Alle zuklappen'"></span>
+            </button>
+            <button @click="save()" class="px-4 py-2 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/25 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300">
+                Speichern <span class="text-petrol-200 text-[10px] ml-1">Ctrl+S</span>
+            </button>
+        </div>
+    </div>
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6 fade-up delay-1">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <div>
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kontakt</label>
+                <div class="relative" @click.outside="showContacts = false">
+                    <input type="text"
+                           x-model="contactSearch"
+                           @focus="showContacts = true"
+                           @input="showContacts = true; if (!contactSearch) contactId = ''"
+                           placeholder="Kontakt suchen..."
+                           autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                    <div x-show="showContacts"
+                         class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        <template x-for="c in contactsFiltered" :key="c.id">
+                            <div @mousedown.prevent @click="selectContact(c)"
+                                 class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                 :class="contactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : 'text-gray-700'"
+                                 x-text="c.name">
+                            </div>
+                        </template>
+                        <div x-show="contactsFiltered.length === 0"
+                             class="px-3 py-2 text-sm text-gray-400 italic">
+                            Kein Kontakt gefunden
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="md:col-span-2">
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Betreff</label>
+                <input type="text" x-model="subject" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200" placeholder="z.B. Aufwandsschätzung digitale Sichtbarkeitsstrategie">
+            </div>
+            
+            <div>
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Datum</label>
+                <input type="date" x-model="docDate" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+            </div>
+            
+            <div x-show="docType === 'quote'">
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Gültig bis</label>
+                <input type="date" x-model="validUntil" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+            </div>
+            
+            <div x-show="docType === 'invoice'">
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Zahlungsfrist</label>
+                <input type="date" x-model="dueDate" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+            </div>
+            
+            <div>
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Zahlungsziel (Tage)</label>
+                <input type="number" x-model.number="paymentTermDays" min="0" max="365" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+            </div>
+            
+            <div x-show="docType === 'invoice'">
+                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Leistungszeitraum</label>
+                <input type="text" x-model="servicePeriod" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200" placeholder="z.B. 01.06.2026 – 30.06.2026">
+            </div>
+        </div>
+    </div>
+
+    
+    <div x-ref="groupsContainer">
+        <template x-for="(group, gIdx) in groups" :key="group._key || gIdx">
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-4 group-card" :data-gidx="gIdx">
+                
+                <div class="flex items-start gap-3 mb-4">
+                    
+                    <button class="group-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1.5 -ml-1" title="Gruppe verschieben">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+                    </button>
+                    
+                    <button @click="group._collapsed = !group._collapsed" class="mt-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="Auf-/Zuklappen">
+                        <svg class="w-4 h-4 transition-transform" :class="group._collapsed ? '-rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                    </button>
+                    <span class="text-lg font-extrabold text-gray-400 mt-1" x-text="(gIdx + 1) + '.'"></span>
+                    <div class="flex-1">
+                        <input type="text" x-model="group.title" placeholder="Gruppenname (z.B. Das Digitale Fundament)" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        <template x-if="!group._collapsed">
+                            <textarea x-model="group.description" placeholder="Optionale Beschreibung..." rows="2" class="w-full mt-2 px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 resize-none"></textarea>
+                        </template>
+                        
+                        <template x-if="group._collapsed">
+                            <div class="mt-1 text-xs text-gray-400">
+                                <span x-text="group.items.length + ' Positionen'"></span> · <span class="font-semibold tabular-nums" x-text="'€ ' + formatEuro(group.items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0)) + ' netto'"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <button @click="groups.splice(gIdx, 1)" class="text-gray-300 hover:text-red-500 transition-colors p-1" title="Gruppe entfernen">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                
+                <div x-show="!group._collapsed" x-transition class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-[11px] font-bold text-gray-400 uppercase">
+                                <th class="w-6"></th>
+                                <th class="text-left pb-2 w-8">Pos</th>
+                                <th class="text-left pb-2">Bezeichnung</th>
+                                <th class="text-right pb-2 w-20">Menge</th>
+                                <th class="text-left pb-2 w-28">Einheit</th>
+                                <th class="text-right pb-2 w-28">Einzelpreis</th>
+                                <th class="text-center pb-2 w-24">Typ</th>
+                                <th class="text-right pb-2 w-28">Gesamt</th>
+                                <th class="w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody :class="'items-sortable-' + gIdx">
+                            <template x-for="(item, iIdx) in group.items" :key="item._key || iIdx">
+                                <tr class="border-t border-gray-100 item-row" :data-iidx="iIdx">
+                                    <td class="py-2">
+                                        <button class="item-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500" title="Position verschieben">
+                                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+                                        </button>
+                                    </td>
+                                    <td class="py-2 text-gray-400" x-text="(gIdx+1) + '.' + (iIdx+1)"></td>
+                                    <td class="py-2 pr-2">
+                                        <input type="text" x-model="item.title" placeholder="Positionsbezeichnung" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                                        <input type="text" x-model="item.description" placeholder="Beschreibung (optional)" class="w-full mt-1 px-2 py-1 border border-gray-100 rounded-lg text-xs text-gray-500 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                                    </td>
+                                    <td class="py-2"><input type="number" step="0.01" x-model.number="item.quantity" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200"></td>
+                                    <td class="py-2">
+                                        <select x-model="item.unit" @change="item.billing_type = item.unit === 'Monatlich' ? 'recurring' : 'onetime'" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                                            {% for val, label in unit_options %}
+                                            <option value="{{ val }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="py-2">
+                                        <input type="number" step="0.01" x-model.number="item.unit_price" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200"
+                                               :class="item._catalogPrice != null && item.unit_price != item._catalogPrice ? 'border-amber-300 bg-amber-50/50' : ''">
+                                        
+                                        <template x-if="item._catalogPrice != null && item.unit_price != item._catalogPrice">
+                                            <div class="text-[10px] text-amber-600 mt-0.5 tabular-nums">
+                                                Katalog: € <span x-text="formatEuro(item._catalogPrice)"></span>
+                                            </div>
+                                        </template>
+                                    </td>
+                                    <td class="py-2 text-center">
+                                        <button @click="item.billing_type = item.billing_type === 'onetime' ? 'recurring' : 'onetime'"
+                                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors"
+                                                :class="item.billing_type === 'recurring' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'"
+                                                x-text="item.billing_type === 'recurring' ? 'Laufend' : 'Einmalig'">
+                                        </button>
+                                    </td>
+                                    <td class="py-2 text-right font-semibold tabular-nums" x-text="formatEuro(item.quantity * item.unit_price)"></td>
+                                    <td class="py-2 whitespace-nowrap">
+                                        <button @click="duplicateItem(group, iIdx)" class="text-gray-300 hover:text-petrol-600 transition-colors p-1" title="Duplizieren">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>
+                                        </button>
+                                        <button @click="group.items.splice(iIdx, 1)" class="text-gray-300 hover:text-red-500 transition-colors p-1" title="Löschen">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                
+                <div x-show="!group._collapsed" class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                    <span class="text-xs text-gray-400 mr-2">Gruppe netto:</span>
+                    <span class="text-sm font-bold tabular-nums" x-text="'€ ' + formatEuro(group.items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0))"></span>
+                </div>
+
+                
+                <div x-show="!group._collapsed" class="mt-3 flex items-center gap-3">
+                    <button @click="group.items.push({title:'', description:'', quantity:1, unit:'Einmalig', unit_price:0, vat_rate:20, billing_type:'onetime', _key: Date.now()})"
+                            class="text-xs font-semibold text-petrol-600 hover:text-petrol-700 flex items-center gap-1 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        Position hinzufügen
+                    </button>
+                    <div class="relative" x-data="{showCatalog: false}" @click.outside="showCatalog = false">
+                        <button @click="showCatalog = !showCatalog"
+                                class="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                            Aus Katalog
+                        </button>
+                        <div x-show="showCatalog" x-transition
+                             class="absolute z-50 mt-1 left-0 w-80 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                            <div class="p-2">
+                                <input type="text" x-model="$root.catalogSearch" placeholder="Leistung suchen..."
+                                       class="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 mb-1">
+                            </div>
+                            
+                            <template x-if="!$root.catalogSearch && $root.catalogFavorites.length > 0">
+                                <div>
+                                    <div class="px-3 py-1 text-[10px] font-bold text-amber-500 uppercase tracking-wider bg-amber-50/50 flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+                                        Häufig verwendet
+                                    </div>
+                                    <template x-for="svc in $root.catalogFavorites" :key="'fav-' + svc.id">
+                                        <button @click="$root.addFromCatalog(group, svc); showCatalog = false"
+                                                class="w-full text-left px-3 py-1.5 hover:bg-amber-50 transition-colors flex justify-between items-center gap-2">
+                                            <span class="text-sm font-medium truncate" x-text="svc.title"></span>
+                                            <span class="text-xs font-semibold text-gray-500 tabular-nums whitespace-nowrap" x-text="'€ ' + $root.formatEuro(svc.unit_price)"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <template x-for="cat in $root.catalogGrouped" :key="cat.key">
+                                <div x-show="cat.items.length > 0">
+                                    <div class="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 flex justify-between">
+                                        <span x-text="cat.label"></span>
+                                        <span class="text-gray-300" x-text="'(' + cat.items.length + ')'"></span>
+                                    </div>
+                                    <template x-for="svc in cat.items" :key="svc.id">
+                                        <button @click="$root.addFromCatalog(group, svc); showCatalog = false"
+                                                class="w-full text-left px-3 py-2 hover:bg-petrol-50 transition-colors flex justify-between items-center gap-2">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-medium truncate" x-text="svc.title"></div>
+                                                <div class="text-[11px] text-gray-400 truncate" x-text="svc.description"></div>
+                                            </div>
+                                            <span class="text-xs font-semibold text-gray-500 tabular-nums whitespace-nowrap" x-text="'€ ' + $root.formatEuro(svc.unit_price)"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                            <div x-show="$root.catalogServices.length === 0" class="px-3 py-4 text-xs text-gray-400 text-center italic">
+                                Keine Leistungen im Katalog — <a href="/services" class="text-petrol-600 hover:underline">anlegen</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    
+    <div class="relative mb-6" x-data="{showGroupMenu: false}" @click.outside="showGroupMenu = false">
+        <button @click="showGroupMenu = !showGroupMenu"
+                class="w-full py-3 border-2 border-dashed border-gray-300 rounded-2xl text-sm font-semibold text-gray-400 hover:text-petrol-600 hover:border-indigo-300 transition-colors flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Gruppe hinzufügen
+            <svg class="w-3.5 h-3.5 transition-transform" :class="showGroupMenu ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </button>
+        <div x-show="showGroupMenu" x-transition
+             class="absolute z-50 mt-1 left-1/2 -translate-x-1/2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            
+            <button @click="groups.push({title:'', description:'', items:[{title:'', description:'', quantity:1, unit:'Einmalig', unit_price:0, vat_rate:20, billing_type:'onetime', _key: Date.now()}], _key: Date.now()}); showGroupMenu = false"
+                    class="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center gap-2 border-b border-gray-100">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                <div>
+                    <div class="text-sm font-semibold text-gray-700">Leere Gruppe</div>
+                    <div class="text-[11px] text-gray-400">Neue Gruppe ohne Positionen</div>
+                </div>
+            </button>
+            
+            <template x-if="groupTemplates.length > 0">
+                <div>
+                    <div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">Vorlagen</div>
+                    <template x-for="gt in groupTemplates" :key="gt.id">
+                        <button @click="addGroupFromTemplate(gt); showGroupMenu = false"
+                                class="w-full text-left px-4 py-2.5 hover:bg-petrol-50 transition-colors">
+                            <div class="flex justify-between items-center">
+                                <div class="min-w-0">
+                                    <div class="text-sm font-semibold truncate" x-text="gt.title"></div>
+                                    <div class="text-[11px] text-gray-400" x-text="gt.items.length + ' Positionen'"></div>
+                                </div>
+                                <span class="text-xs font-bold text-gray-500 tabular-nums whitespace-nowrap"
+                                      x-text="'€ ' + formatEuro(gt.items.reduce((s, i) => s + (i.unit_price * (i.quantity || 1)), 0))"></span>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+            </template>
+            <template x-if="groupTemplates.length === 0">
+                <div class="px-4 py-3 text-xs text-gray-400 text-center">
+                    Keine Gruppen-Vorlagen — <a href="/services" class="text-petrol-600 hover:underline">anlegen</a>
+                </div>
+            </template>
+            
+            <div class="border-t border-gray-100">
+                <button @click="showGroupMenu = false; showDocImport = true"
+                        class="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-700">Aus Dokument importieren</div>
+                        <div class="text-[11px] text-gray-400">Gruppen aus bestehendem Angebot/Rechnung</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <template x-if="showDocImport">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" @click.self="showDocImport = false">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 mx-4" @click.stop>
+                <h3 class="font-headline text-lg font-bold mb-4">Gruppen aus Dokument importieren</h3>
+                <div class="mb-3">
+                    <input type="text" x-model="docImportSearch" @input="searchDocuments()" placeholder="Dokumentnr. oder Betreff suchen..."
+                           class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400">
+                </div>
+                
+                <div class="max-h-64 overflow-y-auto space-y-1">
+                    <template x-for="doc in docImportResults" :key="doc.id">
+                        <button @click="importFromDocument(doc.id)"
+                                class="w-full text-left px-3 py-2.5 hover:bg-petrol-50 rounded-xl transition-colors">
+                            <div class="flex justify-between items-center">
+                                <div class="min-w-0">
+                                    <div class="text-sm font-semibold" x-text="doc.number + ' — ' + doc.contact"></div>
+                                    <div class="text-[11px] text-gray-400 truncate" x-text="doc.subject"></div>
+                                </div>
+                                <span class="text-[11px] text-gray-400 whitespace-nowrap ml-2" x-text="doc.group_count + ' Gruppen'"></span>
+                            </div>
+                        </button>
+                    </template>
+                    <div x-show="docImportSearch.length >= 2 && docImportResults.length === 0" class="text-center py-4 text-xs text-gray-400 italic">
+                        Keine Dokumente gefunden
+                    </div>
+                    <div x-show="docImportSearch.length < 2" class="text-center py-4 text-xs text-gray-400">
+                        Mindestens 2 Zeichen eingeben
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button @click="showDocImport = false" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Konditionen</label>
+            <div class="relative" x-data="{showPresets: false}" @click.outside="showPresets = false">
+                <button @click="showPresets = !showPresets"
+                        class="text-[11px] font-semibold text-petrol-600 hover:text-petrol-700 flex items-center gap-1 transition-colors">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+                    Vorlage einfügen
+                </button>
+                <div x-show="showPresets" x-transition
+                     class="absolute z-50 mt-1 right-0 w-64 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                    <template x-for="ct in $root.conditionsTemplates" :key="ct.id">
+                        <button @click="$root.conditionsText = ct.text; $root.paymentTermDays = ct.payment_term_days || 14; showPresets = false"
+                                class="w-full text-left px-3 py-2 hover:bg-petrol-50 transition-colors text-sm">
+                            <div class="font-medium" x-text="ct.name"></div>
+                            <div class="text-[11px] text-gray-400 truncate" x-text="ct.text.substring(0, 60) + (ct.payment_term_days && ct.payment_term_days !== 14 ? ' (' + ct.payment_term_days + ' Tage)' : '') + '...'"></div>
+                        </button>
+                    </template>
+                    <div x-show="$root.conditionsTemplates.length === 0" class="px-3 py-3 text-xs text-gray-400 text-center italic">
+                        Keine Vorlagen — <a href="/services" class="text-petrol-600 hover:underline">anlegen</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <textarea x-model="conditionsText" rows="4" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 resize-none" placeholder="Zahlungsbedingungen, AGB-Verweis, etc."></textarea>
+    </div>
+
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5">
+            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Rabatt</label>
+            <div class="flex items-center gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <button @click="discountType = discountType === 'percent' ? 'fixed' : 'percent'"
+                                class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors border"
+                                :class="discountType === 'percent' ? 'bg-petrol-50 text-petrol-700 border-petrol-200' : 'bg-gray-100 text-gray-600 border-gray-200'"
+                                x-text="discountType === 'percent' ? '%' : '€'">
+                        </button>
+                        <input type="number" step="0.01" min="0" x-model.number="discountValue"
+                               class="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                               placeholder="0">
+                    </div>
+                </div>
+                <template x-if="discountValue > 0">
+                    <div class="text-sm text-red-600 font-semibold tabular-nums whitespace-nowrap">
+                        - € <span x-text="formatEuro(discountAmount)"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5">
+            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                Interne Notizen
+                <span class="text-[10px] font-normal text-gray-400">(nicht im PDF)</span>
+            </label>
+            <textarea x-model="internalNotes" rows="2" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none" placeholder="z.B. Rabatt wegen Empfehlung, Phase 2 geplant..."></textarea>
+        </div>
+    </div>
+
+    
+    <div class="sticky bottom-0 bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/60 shadow-lg p-5">
+        <template x-if="hasRecurring">
+            <div class="flex justify-end">
+                <table class="text-sm">
+                    <tr class="text-[11px] font-bold text-gray-400 uppercase">
+                        <td></td><td class="px-4 text-right">Einmalig</td><td class="px-4 text-right">Monatlich</td>
+                    </tr>
+                    <tr>
+                        <td class="pr-4 text-gray-500 font-medium">Netto</td>
+                        <td class="px-4 text-right tabular-nums" x-text="'€ ' + formatEuro(totalOnetimeNet)"></td>
+                        <td class="px-4 text-right tabular-nums" x-text="'€ ' + formatEuro(totalRecurringNet)"></td>
+                    </tr>
+                    <tr>
+                        <td class="pr-4 text-gray-500 font-medium">zzgl. 20% USt.</td>
+                        <td class="px-4 text-right tabular-nums" x-text="'€ ' + formatEuro(totalOnetimeNet * 0.2)"></td>
+                        <td class="px-4 text-right tabular-nums" x-text="'€ ' + formatEuro(totalRecurringNet * 0.2)"></td>
+                    </tr>
+                    <tr class="font-extrabold text-base border-t-2 border-gray-900">
+                        <td class="pr-4 pt-1">Gesamt</td>
+                        <td class="px-4 text-right tabular-nums pt-1" x-text="'€ ' + formatEuro(totalOnetimeNet * 1.2)"></td>
+                        <td class="px-4 text-right tabular-nums pt-1" x-text="'€ ' + formatEuro(totalRecurringNet * 1.2)"></td>
+                    </tr>
+                    <template x-if="totalAfterDiscountNet > 0">
+                        <tr>
+                            <td class="pr-4 pt-2 text-xs text-gray-400">Gesch. Stunden</td>
+                            <td class="text-right tabular-nums text-xs text-gray-400 pt-2" x-text="(totalAfterDiscountNet / hourlyRate).toFixed(1) + 'h à € ' + formatEuro(hourlyRate)"></td>
+                        </tr>
+                    </template>
+                </table>
+            </div>
+        </template>
+        <template x-if="!hasRecurring">
+            <div class="flex justify-end">
+                <table class="text-sm">
+                    <tr><td class="pr-4 text-gray-500 font-medium">Netto</td><td class="text-right tabular-nums font-semibold" x-text="'€ ' + formatEuro(totalOnetimeNet)"></td></tr>
+                    <template x-if="discountValue > 0">
+                        <tr class="text-red-600"><td class="pr-4 font-medium">Rabatt</td><td class="text-right tabular-nums" x-text="'- € ' + formatEuro(discountAmount)"></td></tr>
+                    </template>
+                    <tr><td class="pr-4 text-gray-500 font-medium">zzgl. 20% USt.</td><td class="text-right tabular-nums" x-text="'€ ' + formatEuro(totalAfterDiscountNet * 0.2)"></td></tr>
+                    <tr class="font-extrabold text-base border-t-2 border-gray-900"><td class="pr-4 pt-1">Gesamt</td><td class="text-right tabular-nums pt-1" x-text="'€ ' + formatEuro(totalAfterDiscountNet * 1.2)"></td></tr>
+                    <template x-if="totalAfterDiscountNet > 0">
+                        <tr>
+                            <td class="pr-4 pt-2 text-xs text-gray-400">Gesch. Stunden</td>
+                            <td class="text-right tabular-nums text-xs text-gray-400 pt-2" x-text="(totalAfterDiscountNet / hourlyRate).toFixed(1) + 'h à € ' + formatEuro(hourlyRate)"></td>
+                        </tr>
+                    </template>
+                </table>
+            </div>
+        </template>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU" crossorigin="anonymous"></script>
+<script>
+function documentEditor() {
+    let _keyCounter = 0;
+    function nextKey() { return ++_keyCounter; }
+
+    return {
+        docType: '{{ doc_type }}',
+        contactId: '{{ preselect_contact_id or "" }}',
+        contactSearch: '',
+        showContacts: false,
+        contacts: [{% for c in contacts %}{"id": {{ c.id }}, "name": {{ c.display_name | tojson }}},{% endfor %}],
+        get contactsFiltered() {
+            if (!this.contactSearch) return this.contacts;
+            const q = this.contactSearch.toLowerCase();
+            return this.contacts.filter(c => c.name.toLowerCase().includes(q));
+        },
+        selectContact(c) {
+            this.contactId = c.id;
+            this.contactSearch = c.name;
+            this.showContacts = false;
+        },
+        subject: '',
+        docDate: new Date().toISOString().slice(0, 10),
+        validUntil: '',
+        dueDate: '',
+        conditionsText: '',
+        servicePeriod: '',
+        hourlyRate: 100,
+        paymentTermDays: 14,
+        updatedAt: '',
+        internalNotes: '',
+        discountType: 'percent',  // 'percent' or 'fixed'
+        discountValue: 0,
+        groups: [
+            {
+                title: '',
+                description: '',
+                items: [{title:'', description:'', quantity:1, unit:'Einmalig', unit_price:0, vat_rate:20, billing_type:'onetime', _key: nextKey()}],
+                _key: nextKey(),
+            }
+        ],
+
+        get totalOnetimeNet() {
+            return this.groups.reduce((sum, g) => sum + g.items
+                .filter(i => i.billing_type === 'onetime')
+                .reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), 0);
+        },
+        get totalRecurringNet() {
+            return this.groups.reduce((sum, g) => sum + g.items
+                .filter(i => i.billing_type === 'recurring')
+                .reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), 0);
+        },
+        get hasRecurring() {
+            return this.groups.some(g => g.items.some(i => i.billing_type === 'recurring'));
+        },
+        get discountAmount() {
+            if (!this.discountValue || this.discountValue <= 0) return 0;
+            const net = this.totalOnetimeNet + this.totalRecurringNet;
+            return this.discountType === 'percent' ? net * this.discountValue / 100 : this.discountValue;
+        },
+        get totalAfterDiscountNet() {
+            return Math.max(0, this.totalOnetimeNet + this.totalRecurringNet - this.discountAmount);
+        },
+
+        toggleAllGroups() {
+            const allCollapsed = this.groups.every(g => g._collapsed);
+            this.groups.forEach(g => g._collapsed = !allCollapsed);
+        },
+
+        duplicateItem(group, idx) {
+            const src = group.items[idx];
+            group.items.splice(idx + 1, 0, {
+                title: src.title,
+                description: src.description,
+                quantity: src.quantity,
+                unit: src.unit,
+                unit_price: src.unit_price,
+                vat_rate: src.vat_rate || 20,
+                billing_type: src.billing_type,
+                _catalogPrice: src._catalogPrice,
+                _key: nextKey(),
+            });
+        },
+
+        formatEuro(val) {
+            return new Intl.NumberFormat('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+        },
+
+        async save() {
+            if (!this.contactId) { alert('Bitte Kontakt wählen'); return; }
+            if (!this.subject.trim()) { alert('Bitte Betreff eingeben'); return; }
+            if (this.groups.length === 0 || !this.groups.some(g => g.items.length > 0)) { alert('Mindestens eine Position erforderlich'); return; }
+
+            const payload = {
+                doc_type: this.docType,
+                contact_id: parseInt(this.contactId),
+                subject: this.subject,
+                date: this.docDate,
+                valid_until: this.validUntil || null,
+                due_date: this.dueDate || null,
+                conditions_text: this.conditionsText,
+                service_period: this.servicePeriod || null,
+                payment_term_days: this.paymentTermDays || 14,
+                updated_at: this.updatedAt || null,
+                internal_notes: this.internalNotes || null,
+                discount_type: this.discountValue > 0 ? this.discountType : null,
+                discount_value: this.discountValue > 0 ? this.discountValue : null,
+                groups: this.groups.map(g => ({
+                    id: g.id || null,
+                    title: g.title,
+                    description: g.description,
+                    items: g.items.map(i => ({
+                        id: i.id || null,
+                        title: i.title,
+                        description: i.description,
+                        quantity: parseFloat(i.quantity) || 0,
+                        unit: i.unit,
+                        unit_price: parseFloat(i.unit_price) || 0,
+                        vat_rate: parseFloat(i.vat_rate) || 20,
+                        billing_type: i.billing_type
+                    }))
+                }))
+            };
+
+            const url = this.editMode ? `/documents/${this.editId}/edit` : '/documents/new';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                this._savedOnce = true;
+                this._isDirty = false;
+                localStorage.removeItem(this._autoSaveKey);
+                const titles = this.groups.flatMap(g => g.items.filter(i => i._catalogPrice != null).map(i => i.title));
+                if (titles.length > 0) {
+                    fetch('/api/services/bump-usage', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({titles})
+                    }).catch(() => {});
+                }
+                window.location.href = `/documents/${result.id}`;
+            } else {
+                alert(result.error || 'Fehler beim Speichern');
+            }
+        },
+        _getAutoSaveData() {
+            return {
+                contactId: this.contactId,
+                contactSearch: this.contactSearch,
+                subject: this.subject,
+                docDate: this.docDate,
+                validUntil: this.validUntil,
+                dueDate: this.dueDate,
+                conditionsText: this.conditionsText,
+                servicePeriod: this.servicePeriod,
+                paymentTermDays: this.paymentTermDays,
+                internalNotes: this.internalNotes,
+                discountType: this.discountType,
+                discountValue: this.discountValue,
+                groups: this.groups.map(g => ({
+                    title: g.title, description: g.description,
+                    items: g.items.map(i => ({
+                        title: i.title, description: i.description,
+                        quantity: i.quantity, unit: i.unit,
+                        unit_price: i.unit_price, vat_rate: i.vat_rate,
+                        billing_type: i.billing_type, _catalogPrice: i._catalogPrice,
+                    })),
+                })),
+                _savedAt: new Date().toISOString(),
+            };
+        },
+        _doAutoSave() {
+            try {
+                localStorage.setItem(this._autoSaveKey, JSON.stringify(this._getAutoSaveData()));
+                this.autoSaveStatus = 'Auto-gespeichert';
+                setTimeout(() => this.autoSaveStatus = '', 2000);
+            } catch(e) {}
+        },
+        restoreAutoSave() {
+            try {
+                const data = JSON.parse(localStorage.getItem(this._autoSaveKey));
+                if (!data) return;
+                this.contactId = data.contactId || '';
+                this.contactSearch = data.contactSearch || '';
+                this.subject = data.subject || '';
+                this.docDate = data.docDate || new Date().toISOString().slice(0, 10);
+                this.validUntil = data.validUntil || '';
+                this.dueDate = data.dueDate || '';
+                this.conditionsText = data.conditionsText || '';
+                this.servicePeriod = data.servicePeriod || '';
+                this.paymentTermDays = data.paymentTermDays || 14;
+                this.internalNotes = data.internalNotes || '';
+                this.discountType = data.discountType || 'percent';
+                this.discountValue = data.discountValue || 0;
+                this.groups = (data.groups || []).map(g => ({...g, _key: nextKey(), items: (g.items || []).map(i => ({...i, _key: nextKey()}))}));
+                this.hasRecovery = false;
+                localStorage.removeItem(this._autoSaveKey);
+            } catch(e) {}
+        },
+        discardAutoSave() {
+            localStorage.removeItem(this._autoSaveKey);
+            this.hasRecovery = false;
+        },
+
+        catalogServices: [],
+        catalogSearch: '',
+        groupTemplates: [],
+        conditionsTemplates: [],
+        get catalogFavorites() {
+            return this.catalogServices.slice()
+                .filter(s => s.use_count > 0)
+                .sort((a, b) => b.use_count - a.use_count)
+                .slice(0, 5);
+        },
+        showDocImport: false,
+        docImportSearch: '',
+        docImportResults: [],
+        _searchTimeout: null,
+        searchDocuments() {
+            clearTimeout(this._searchTimeout);
+            if (this.docImportSearch.length < 2) { this.docImportResults = []; return; }
+            this._searchTimeout = setTimeout(async () => {
+                const resp = await fetch('/api/documents/search?q=' + encodeURIComponent(this.docImportSearch));
+                this.docImportResults = await resp.json();
+            }, 300);
+        },
+        async importFromDocument(docId) {
+            const resp = await fetch(`/api/documents/${docId}/groups`);
+            const data = await resp.json();
+            for (const g of data.groups) {
+                this.groups.push({
+                    title: g.title,
+                    description: g.description,
+                    _key: nextKey(),
+                    items: g.items.map(i => ({
+                        ...i, vat_rate: 20, _key: nextKey(),
+                    })),
+                });
+            }
+            this.showDocImport = false;
+            this.docImportSearch = '';
+            this.docImportResults = [];
+        },
+        _autoSaveKey: 'stellwerk-doc-autosave-' + '{{ doc_type }}' + '-' + '{{ preselect_contact_id or "new" }}',
+        autoSaveStatus: '',
+        hasRecovery: false,
+        _autoSaveInterval: null,
+        get catalogGrouped() {
+            const q = this.catalogSearch.toLowerCase();
+            const cats = {};
+            for (const svc of this.catalogServices) {
+                if (q && !svc.title.toLowerCase().includes(q) && !svc.description.toLowerCase().includes(q) && !svc.category_label.toLowerCase().includes(q)) continue;
+                if (!cats[svc.category]) cats[svc.category] = { key: svc.category, label: svc.category_label, items: [] };
+                cats[svc.category].items.push(svc);
+            }
+            return Object.values(cats);
+        },
+        addFromCatalog(group, svc) {
+            group.items.push({
+                title: svc.title,
+                description: svc.description,
+                quantity: 1,
+                unit: svc.unit,
+                unit_price: svc.unit_price,
+                vat_rate: 20,
+                billing_type: svc.billing_type,
+                _catalogPrice: svc.unit_price,
+                _key: nextKey(),
+            });
+        },
+        addGroupFromTemplate(gt) {
+            const existing = this.groups.find(g => g.title === gt.title && g.items.length === gt.items.length);
+            if (existing) {
+                if (!confirm(`"${gt.title}" ist bereits vorhanden. Trotzdem nochmal einfügen?`)) return;
+            }
+            this.groups.push({
+                title: gt.title,
+                description: gt.description,
+                _key: nextKey(),
+                items: gt.items.map(i => ({
+                    title: i.title,
+                    description: i.description,
+                    quantity: i.quantity || 1,
+                    unit: i.unit,
+                    unit_price: i.unit_price,
+                    vat_rate: 20,
+                    billing_type: i.billing_type,
+                    _catalogPrice: i.unit_price,
+                    _key: nextKey(),
+                })),
+            });
+        },
+
+        _groupSortable: null,
+        _itemSortables: [],
+
+        initSortable() {
+            this.$nextTick(() => {
+                const container = this.$refs.groupsContainer;
+                if (!container) return;
+                if (this._groupSortable) this._groupSortable.destroy();
+                this._groupSortable = new Sortable(container, {
+                    handle: '.group-drag-handle',
+                    animation: 200,
+                    ghostClass: 'opacity-30',
+                    onEnd: (evt) => {
+                        const moved = this.groups.splice(evt.oldIndex, 1)[0];
+                        this.groups.splice(evt.newIndex, 0, moved);
+                    },
+                });
+
+                this._itemSortables.forEach(s => s.destroy());
+                this._itemSortables = [];
+                this.groups.forEach((group, gIdx) => {
+                    const tbody = container.querySelectorAll('tbody.items-sortable-' + gIdx)[0];
+                    if (!tbody) return;
+                    const self = this;
+                    const sortable = new Sortable(tbody, {
+                        handle: '.item-drag-handle',
+                        group: 'items',  // enables cross-group drag
+                        animation: 200,
+                        ghostClass: 'opacity-30',
+                        onEnd: (evt) => {
+                            const fromGIdx = parseInt(evt.from.className.match(/items-sortable-(\d+)/)?.[1]);
+                            const toGIdx = parseInt(evt.to.className.match(/items-sortable-(\d+)/)?.[1]);
+                            if (isNaN(fromGIdx) || isNaN(toGIdx)) return;
+                            const moved = self.groups[fromGIdx].items.splice(evt.oldIndex, 1)[0];
+                            self.groups[toGIdx].items.splice(evt.newIndex, 0, moved);
+                        },
+                    });
+                    this._itemSortables.push(sortable);
+                });
+            });
+        },
+
+        editMode: false,
+        editId: null,
+
+        async init() {
+            {% if document and doc_json %}
+            this.editMode = true;
+            this.editId = {{ document.id }};
+            const data = {{ doc_json | tojson }};
+            this.contactId = data.contactId;
+            this.subject = data.subject;
+            this.docDate = data.docDate;
+            this.validUntil = data.validUntil;
+            this.dueDate = data.dueDate;
+            this.conditionsText = data.conditionsText;
+            this.servicePeriod = data.servicePeriod || '';
+            this.paymentTermDays = data.paymentTermDays || 14;
+            this.updatedAt = data.updatedAt || '';
+            this.internalNotes = data.internalNotes || '';
+            this.discountType = data.discountType || 'percent';
+            this.discountValue = data.discountValue || 0;
+            this.groups = data.groups.map(g => ({...g, _key: nextKey(), items: g.items.map(i => ({...i, _key: nextKey()}))}));
+            {% endif %}
+            const preselected = this.contacts.find(c => c.id == this.contactId);
+            if (preselected) this.contactSearch = preselected.name;
+
+            try {
+                const [svcResp, gtResp, ctResp] = await Promise.all([
+                    fetch('/api/services'),
+                    fetch('/api/group-templates'),
+                    fetch('/api/conditions-templates'),
+                ]);
+                this.catalogServices = await svcResp.json();
+                this.groupTemplates = await gtResp.json();
+                this.conditionsTemplates = await ctResp.json();
+
+                {% if not document %}
+                if (!this.conditionsText && this.conditionsTemplates.length > 0) {
+                    const defaultName = this.docType === 'quote' ? 'Angebot' : '14 Tage';
+                    const match = this.conditionsTemplates.find(t => t.name.includes(defaultName));
+                    if (match) {
+                        this.conditionsText = match.text;
+                        if (match.payment_term_days) this.paymentTermDays = match.payment_term_days;
+                    }
+                }
+                {% endif %}
+            } catch(e) { console.warn('Catalog not loaded:', e); }
+
+            this.initSortable();
+            this.$watch('groups.length', () => this.initSortable());
+
+            {% if not document %}
+            try {
+                const saved = localStorage.getItem(this._autoSaveKey);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.subject || data.groups?.some(g => g.items?.some(i => i.title))) {
+                        this.hasRecovery = true;
+                    }
+                }
+            } catch(e) {}
+            {% endif %}
+
+            this._autoSaveInterval = setInterval(() => this._doAutoSave(), 30000);
+
+            this._isDirty = false;
+            this._savedOnce = false;
+            const markDirty = () => { this._isDirty = true; };
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.addEventListener('input', markDirty);
+                el.addEventListener('change', markDirty);
+            });
+            window.addEventListener('beforeunload', (e) => {
+                this._doAutoSave();
+                if (this._isDirty && !this._savedOnce) {
+                    e.preventDefault();
+                }
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.save();
+                }
+            });
+        },
+    }
+}
+</script>
+{% endblock %}

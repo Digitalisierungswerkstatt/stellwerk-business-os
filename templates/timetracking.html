@@ -1,0 +1,663 @@
+{% extends "base.html" %}
+{% block title %}Zeiterfassung - Stellwerk{% endblock %}
+
+{% block content %}
+{% set taetigkeit_labels = dict(taetigkeit_kontakt + taetigkeit_allgemein) %}
+
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 fade-up">
+    <div>
+        <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Zeiterfassung</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Arbeitszeit erfassen und auswerten</p>
+    </div>
+    <div class="flex gap-2">
+        <form action="{{ url_for('timetracking_copy_last_week') }}" method="POST" class="inline">
+            <button type="submit" onclick="return confirm('Einträge der letzten Woche als Vorlage kopieren?')"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-amber-600 border border-amber-200 rounded-xl hover:bg-amber-50 hover:border-amber-300 text-sm font-semibold transition-all duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>
+                Letzte Woche kopieren
+            </button>
+        </form>
+        <a href="{{ url_for('timetracking_export', zeitraum=filter_zeitraum, contact_id=filter_contact, taetigkeit=filter_taetigkeit) }}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            CSV Export
+        </a>
+    </div>
+</div>
+
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 fade-up delay-1">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Heute</p>
+                <p class="text-xl font-extrabold text-gray-900 tabular-nums">{{ format_minutes(today_minutes) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-petrol-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-petrol-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Diese Woche</p>
+                <p class="text-xl font-extrabold text-gray-900 tabular-nums">{{ format_minutes(week_minutes) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Dieser Monat</p>
+                <p class="text-xl font-extrabold text-gray-900 tabular-nums">{{ format_minutes(month_minutes) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+    <div class="flex items-center gap-2.5 mb-4">
+        <div class="w-7 h-7 rounded-lg bg-gold-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-gold-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h2 class="text-sm font-bold text-gray-900">Tatsächliche Arbeitszeit</h2>
+        <span class="text-[11px] text-gray-400">eine Zahl pro Tag, unabhängig von der Verbuchung</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        <form action="{{ url_for('workday_save') }}" method="POST" class="lg:col-span-1">
+            <input type="hidden" name="datum" value="{{ today.isoformat() }}">
+            <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Heute, {{ today.strftime('%d.%m.') }}</label>
+            <div class="flex gap-2">
+                <input type="text" name="arbeitszeit" autocomplete="off"
+                       value="{{ workday_today.dauer_display if workday_today else '' }}"
+                       placeholder="8:30 oder 8,5"
+                       class="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm tabular-nums bg-white focus:ring-2 focus:ring-gold-500/20 focus:border-gold-400 transition-all">
+                <input type="text" name="notiz" autocomplete="off"
+                       value="{{ workday_today.notiz or '' if workday_today else '' }}"
+                       placeholder="Notiz (optional)"
+                       class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-gold-500/20 focus:border-gold-400 transition-all">
+                <button type="submit"
+                        class="px-4 py-2 bg-petrol-600 text-white rounded-lg hover:bg-petrol-700 text-sm font-semibold transition-all duration-200">
+                    {{ 'Ändern' if workday_today else 'Setzen' }}
+                </button>
+            </div>
+            <p class="text-[11px] text-gray-400 mt-1.5">Leer speichern löscht den Tag.</p>
+        </form>
+
+        
+        <div class="lg:col-span-2 grid grid-cols-2 gap-4">
+            {% for label, s in [('Diese Woche', strang_woche), ('Dieser Monat', strang_monat)] %}
+            <div class="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">{{ label }}</p>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-baseline">
+                        <span class="text-[11px] text-gray-500">Tatsächlich</span>
+                        <span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ format_minutes(s.ist) }}</span>
+                    </div>
+                    <div class="flex justify-between items-baseline">
+                        <span class="text-[11px] text-gray-500">Verbucht</span>
+                        <span class="text-sm font-semibold text-gray-700 tabular-nums">{{ format_minutes(s.verbucht) }}</span>
+                    </div>
+                    <div class="flex justify-between items-baseline pl-3">
+                        <span class="text-[11px] text-gray-400">davon Kunde</span>
+                        <span class="text-[11px] text-gray-500 tabular-nums">{{ format_minutes(s.kunde) }}</span>
+                    </div>
+                    <div class="flex justify-between items-baseline pl-3">
+                        <span class="text-[11px] text-gray-400">davon Eigenarbeit</span>
+                        <span class="text-[11px] text-gray-500 tabular-nums">{{ format_minutes(s.eigenarbeit) }}</span>
+                    </div>
+                    <div class="flex justify-between items-baseline pt-1.5 border-t border-gray-200/70">
+                        <span class="text-[11px] font-semibold text-gray-500">Kundenquote</span>
+                        {% if s.kundenquote is none %}
+                        <span class="text-[11px] text-gray-300">keine Ist-Zahl</span>
+                        {% else %}
+                        <span class="text-sm font-extrabold tabular-nums {{ 'text-emerald-600' if s.kundenquote >= 50 else ('text-amber-600' if s.kundenquote >= 30 else 'text-rose-600') }}">{{ s.kundenquote }}%</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if workday_luecken %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+        <p class="text-[11px] text-amber-700">
+            <span class="font-semibold">{{ workday_luecken|length }} Werktag{{ 'e' if workday_luecken|length != 1 }} diesen Monat ohne Ist-Zahl:</span>
+            <span class="tabular-nums">{{ workday_luecken|map(attribute='day')|join('., ') }}.</span>
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+
+{% if taetigkeit_stats %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+    <div class="flex items-center gap-2.5 mb-4">
+        <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/></svg>
+        </div>
+        <h2 class="text-sm font-bold text-gray-900">Zeitverteilung diesen Monat</h2>
+    </div>
+    {% set colors = ['bg-petrol-400', 'bg-sky-400', 'bg-violet-400', 'bg-amber-400', 'bg-emerald-400', 'bg-rose-400', 'bg-cyan-400', 'bg-orange-400', 'bg-indigo-400', 'bg-teal-400'] %}
+    
+    <div class="flex h-6 rounded-lg overflow-hidden mb-4">
+        {% for ts in taetigkeit_stats %}
+        <div class="{{ colors[loop.index0 % colors|length] }} transition-all duration-500" style="width: {{ ts.pct }}%" title="{{ ts.label }}: {{ format_minutes(ts.minuten) }} ({{ ts.pct }}%)"></div>
+        {% endfor %}
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {% for ts in taetigkeit_stats %}
+        <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <div class="w-3 h-3 rounded-sm flex-shrink-0 {{ colors[loop.index0 % colors|length] }}"></div>
+            <div class="min-w-0">
+                <p class="text-[11px] font-semibold text-gray-700 truncate">{{ ts.label }}</p>
+                <p class="text-[11px] text-gray-400 tabular-nums">{{ format_minutes(ts.minuten) }} <span class="text-gray-300">({{ ts.pct }}%)</span></p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+
+{% if week_grid_rows %}
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 mb-6 hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+    <div class="flex items-center gap-2.5 mb-4">
+        <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-petrol-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+        </div>
+        <h2 class="text-sm font-bold text-gray-900">Wochenansicht</h2>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-gray-200/60">
+        <table class="min-w-full divide-y divide-gray-100">
+            <thead>
+                <tr class="bg-gray-50/80">
+                    <th class="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tätigkeit</th>
+                    {% for day in week_grid_days %}
+                    <th class="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider {{ 'text-petrol-600 bg-petrol-50/50' if day.date == today else 'text-gray-500' }}">{{ day.label }}</th>
+                    {% endfor %}
+                    <th class="px-3 py-2.5 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">Gesamt</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100/80">
+                {% for row in week_grid_rows %}
+                <tr class="hover:bg-petrol-50/30 transition-all duration-150">
+                    <td class="px-4 py-2">
+                        <span class="text-xs font-medium text-gray-700">{{ row.label }}</span>
+                    </td>
+                    {% for d in range(5) %}
+                    <td class="px-3 py-2 text-center">
+                        {% if row.days[d] > 0 %}
+                        <span class="text-xs font-bold text-gray-900 tabular-nums">{{ format_minutes(row.days[d]) }}</span>
+                        {% else %}
+                        <span class="text-xs text-gray-200">-</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="px-3 py-2 text-center">
+                        <span class="text-xs font-extrabold text-gray-900 tabular-nums">{{ format_minutes(row.total) }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="bg-gray-50/80">
+                    <td class="px-4 py-2.5 text-[11px] font-bold text-gray-500 uppercase">Gesamt</td>
+                    {% for d in range(5) %}
+                    <td class="px-3 py-2.5 text-center">
+                        <span class="text-xs font-extrabold tabular-nums {{ 'text-petrol-600' if week_grid_days[d].date == today else 'text-gray-900' }}">{{ format_minutes(week_day_totals[d]) }}</span>
+                    </td>
+                    {% endfor %}
+                    <td class="px-3 py-2.5 text-center">
+                        <span class="text-xs font-extrabold text-petrol-600 tabular-nums">{{ format_minutes(week_day_totals|sum) }}</span>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+
+{% if active_timer %}
+<div class="mb-6 fade-up delay-1" x-data="activeTimerDisplay('{{ active_timer.timer_start.isoformat() }}')">
+    <div class="bg-emerald-50 rounded-2xl border border-emerald-200/60 shadow-sm p-5 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <div>
+                <p class="text-sm font-bold text-emerald-900">Timer läuft</p>
+                <p class="text-xs text-emerald-700">
+                    {% if active_timer.contact %}{{ active_timer.contact.display_name }} &middot; {% endif %}
+                    {{ taetigkeit_labels.get(active_timer.taetigkeit, active_timer.taetigkeit) }}
+                </p>
+            </div>
+            <span class="text-2xl font-extrabold text-emerald-700 tabular-nums ml-4" x-text="elapsed">0:00</span>
+        </div>
+        <button @click="stopTimer()"
+                class="px-5 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors shadow-sm">
+            Stop
+        </button>
+    </div>
+</div>
+{% endif %}
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm mb-6 fade-up delay-2 hover:shadow-md transition-shadow duration-300"
+     x-data="timetrackingForm()">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        </div>
+        <h2 class="text-sm font-semibold text-gray-900">Zeit erfassen</h2>
+    </div>
+    <div class="p-5">
+        
+        <div class="flex gap-1 mb-4 p-0.5 bg-gray-100 rounded-lg w-fit">
+            <button @click="mode = 'kontakt'" :class="mode === 'kontakt' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+                    class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all" type="button">Kontaktbezogen</button>
+            <button @click="mode = 'allgemein'" :class="mode === 'allgemein' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+                    class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all" type="button">Allgemein</button>
+        </div>
+
+        
+        {% if not active_timer %}
+        <div class="flex flex-wrap gap-3 items-end mb-4 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/60">
+            <div x-show="mode === 'kontakt'">
+                <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Kontakt</label>
+                <div class="relative" @click.outside="showTimerContacts = false">
+                    <input type="text"
+                           x-model="timerContactSearch"
+                           @focus="showTimerContacts = true"
+                           @input="showTimerContacts = true; if (!timerContactSearch) timerContactId = ''"
+                           placeholder="Kontakt suchen..."
+                           autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all">
+                    <div x-show="showTimerContacts"
+                         class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        <template x-for="c in timerContactsFiltered" :key="c.id">
+                            <div @mousedown.prevent @click="timerContactId = c.id; timerContactSearch = c.name; showTimerContacts = false"
+                                 class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                 :class="timerContactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : 'text-gray-700'"
+                                 x-text="c.name"></div>
+                        </template>
+                        <div x-show="timerContactsFiltered.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Kein Kontakt gefunden</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Tätigkeit</label>
+                <select x-model="timerTaetigkeit" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all">
+                    <template x-if="mode === 'kontakt'">
+                        <optgroup label="Kontaktbezogen">
+                            {% for value, label in taetigkeit_kontakt %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                            {% for val in custom_taetigkeiten_kontakt %}
+                            <option value="{{ val }}">{{ val }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </template>
+                    
+                    <optgroup label="Eigenarbeit">
+                        {% for value, label in taetigkeit_allgemein %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                        {% for val in custom_taetigkeiten_allgemein %}
+                        <option value="{{ val }}">{{ val }}</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+            <button @click="startTimer()" type="button"
+                    class="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/25 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                Timer starten
+            </button>
+        </div>
+        {% endif %}
+
+        
+        <form action="{{ url_for('timetracking_add') }}" method="POST">
+            <div class="flex flex-wrap gap-3 items-end p-4 bg-gray-50 rounded-xl border border-gray-200/60">
+                <div x-show="mode === 'kontakt'">
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Kontakt</label>
+                    <div class="relative" @click.outside="showAddContacts = false">
+                        <input type="hidden" name="contact_id" :value="addContactId">
+                        <input type="text"
+                               x-model="addContactSearch"
+                               @focus="showAddContacts = true"
+                               @input="showAddContacts = true; if (!addContactSearch) addContactId = ''"
+                               placeholder="Kontakt suchen..."
+                               autocomplete="off"
+                               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <div x-show="showAddContacts"
+                             class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            <template x-for="c in addContactsFiltered" :key="c.id">
+                                <div @mousedown.prevent @click="addContactId = c.id; addContactSearch = c.name; showAddContacts = false"
+                                     class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                     :class="addContactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : 'text-gray-700'"
+                                     x-text="c.name"></div>
+                            </template>
+                            <div x-show="addContactsFiltered.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Kein Kontakt gefunden</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Datum</label>
+                    <input type="date" name="datum" value="{{ today.isoformat() }}"
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                </div>
+                <div class="w-24 flex-shrink-0">
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Dauer</label>
+                    <input type="text" name="dauer" placeholder="1:30" required
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Tätigkeit</label>
+                    <input type="text" name="taetigkeit" list="taetigkeit_list" required placeholder="Auswählen oder eingeben"
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all placeholder:text-gray-300">
+                    <datalist id="taetigkeit_list">
+                        <template x-if="mode === 'kontakt'">
+                            <div>
+                                {% for value, label in taetigkeit_kontakt %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                                {% for val in custom_taetigkeiten_kontakt %}
+                                <option value="{{ val }}">
+                                {% endfor %}
+                            </div>
+                        </template>
+                        
+                        {% for value, label in taetigkeit_allgemein %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                        {% for val in custom_taetigkeiten_allgemein %}
+                        <option value="{{ val }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="flex-1 min-w-[150px]">
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Notiz</label>
+                    <input type="text" name="notiz" placeholder="Optional..."
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all placeholder:text-gray-300">
+                </div>
+                <button type="submit"
+                        class="px-5 py-2 bg-petrol-500 text-white rounded-lg text-sm font-semibold hover:bg-petrol-600 transition-colors shadow-sm shadow-petrol-500/25">
+                    Hinzufügen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm overflow-hidden fade-up delay-3 hover:shadow-md transition-shadow duration-300">
+    
+    <div class="px-5 py-4 border-b border-gray-100">
+        <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Zeitraum</label>
+                <select name="zeitraum" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                    <option value="heute" {{ 'selected' if filter_zeitraum == 'heute' else '' }}>Heute</option>
+                    <option value="woche" {{ 'selected' if filter_zeitraum == 'woche' else '' }}>Diese Woche</option>
+                    <option value="monat" {{ 'selected' if filter_zeitraum == 'monat' else '' }}>Dieser Monat</option>
+                    <option value="alle" {{ 'selected' if filter_zeitraum == 'alle' else '' }}>Alle</option>
+                </select>
+            </div>
+            <div x-data="filterContactSearch({{ (filter_contact or '')|tojson|forceescape }})">
+                <label class="block text-[11px] font-semibold text-gray-400 mb-1.5">Kontakt</label>
+                <div class="relative" @click.outside="showFilterContacts = false">
+                    <input type="hidden" name="contact_id" :value="filterContactId">
+                    <input type="text"
+                           x-model="filterContactSearch"
+                           @focus="showFilterContacts = true"
+                           @input="showFilterContacts = true; if (!filterContactSearch) filterContactId = ''"
+                           placeholder="Alle Kontakte..."
+                           autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                    <div x-show="showFilterContacts"
+                         class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        <template x-for="c in filterContactsFiltered" :key="c.id">
+                            <div @mousedown.prevent @click="filterContactId = c.id; filterContactSearch = c.id === '' ? '' : c.name; showFilterContacts = false"
+                                 class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                 :class="filterContactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : c.id === '' || c.id === '0' ? 'text-gray-400' : 'text-gray-700'"
+                                 x-text="c.name"></div>
+                        </template>
+                        <div x-show="filterContactsFiltered.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Kein Kontakt gefunden</div>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors">Filtern</button>
+            {% if filter_contact or filter_taetigkeit or filter_zeitraum != 'woche' %}
+            <a href="{{ url_for('timetracking') }}" class="px-3 py-2 text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">Zurücksetzen</a>
+            {% endif %}
+        </form>
+    </div>
+
+    
+    {% if entries %}
+    <table class="min-w-full divide-y divide-gray-100">
+        <thead>
+            <tr class="bg-gray-50/80">
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Datum</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Kontakt</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Tätigkeit</th>
+                <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Dauer</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Notiz</th>
+                <th class="px-5 py-3 w-10"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100/80">
+            {% for entry in entries %}
+            <tr class="hover:bg-petrol-50/30 transition-all duration-150 group" x-data="editRowSearch('{{ entry.contact_id or '' }}', {{ (entry.contact.display_name if entry.contact else '')|tojson|forceescape }})">
+                
+                <td class="px-5 py-3" x-show="!editing">
+                    <span class="text-sm text-gray-700 tabular-nums">{{ entry.datum.strftime('%d.%m.%Y') }}</span>
+                </td>
+                <td class="px-5 py-3" x-show="!editing">
+                    {% if entry.contact %}
+                    <a href="{{ url_for('contact_view', id=entry.contact_id) }}" class="text-sm text-petrol-600 hover:text-petrol-600 font-medium">{{ entry.contact.display_name }}</a>
+                    {% else %}
+                    <span class="text-sm text-gray-400">Allgemein</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3" x-show="!editing">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-700/10">
+                        {{ taetigkeit_labels.get(entry.taetigkeit, entry.taetigkeit) }}
+                    </span>
+                </td>
+                <td class="px-5 py-3 text-right" x-show="!editing">
+                    <span class="text-sm font-bold text-gray-900 tabular-nums">{{ entry.dauer_display }}</span>
+                </td>
+                <td class="px-5 py-3 hidden md:table-cell" x-show="!editing">
+                    <span class="text-sm text-gray-500 truncate block max-w-xs">{{ entry.notiz or '' }}</span>
+                </td>
+                <td class="px-5 py-3" x-show="!editing">
+                    <div class="flex items-center gap-1.5">
+                        <button @click="editing = true" class="text-gray-300 hover:text-petrol-500 opacity-0 group-hover:opacity-100 transition-all duration-200" title="Bearbeiten">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                        </button>
+                        <form action="{{ url_for('timetracking_delete', id=entry.id) }}" method="POST">
+                            <button type="submit" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all duration-200" title="Löschen">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+                
+                <td colspan="6" x-show="editing" x-cloak>
+                    <form action="{{ url_for('timetracking_edit', id=entry.id) }}" method="POST" class="flex flex-wrap gap-2.5 items-end px-2 py-2.5">
+                        <input type="date" name="datum" value="{{ entry.datum.isoformat() }}"
+                               class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <div class="relative inline-block" @click.outside="showEditContacts = false">
+                            <input type="hidden" name="contact_id" value="{{ entry.contact_id or '' }}" :value="editContactId">
+                            <input type="text" x-model="editContactSearch"
+                                   @focus="showEditContacts = true"
+                                   @input="showEditContacts = true; if (!editContactSearch) editContactId = ''"
+                                   placeholder="Allgemein" autocomplete="off"
+                                   class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                            <div x-show="showEditContacts" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto min-w-[200px]">
+                                <template x-for="c in editContactsFiltered" :key="c.id">
+                                    <div @mousedown.prevent @click="editContactId = c.id; editContactSearch = c.id === '' ? '' : c.name; showEditContacts = false"
+                                         class="px-3 py-2 text-sm cursor-pointer hover:bg-petrol-50 transition-colors"
+                                         :class="editContactId == c.id ? 'bg-petrol-50 text-petrol-600 font-medium' : 'text-gray-700'"
+                                         x-text="c.name"></div>
+                                </template>
+                                <div x-show="editContactsFiltered.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">Kein Kontakt gefunden</div>
+                            </div>
+                        </div>
+                        <input type="text" name="taetigkeit" value="{{ entry.taetigkeit }}" list="edit_taetigkeit_{{ entry.id }}" required
+                               class="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <datalist id="edit_taetigkeit_{{ entry.id }}">
+                            {% for value, label in taetigkeit_kontakt %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                            {% for value, label in taetigkeit_allgemein %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </datalist>
+                        <input type="text" name="dauer" value="{{ entry.dauer_display }}" required placeholder="1:30"
+                               class="w-20 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <input type="text" name="notiz" value="{{ entry.notiz or '' }}" placeholder="Notiz..."
+                               class="flex-1 min-w-[120px] px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all placeholder:text-gray-300">
+                        <div class="flex items-center gap-1.5">
+                            <button type="submit" class="px-3.5 py-1.5 bg-petrol-500 text-white rounded-lg text-xs font-semibold hover:bg-petrol-600 transition-colors">Speichern</button>
+                            <button type="button" @click="editing = false" class="px-3.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors">Abbrechen</button>
+                        </div>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-50/80">
+                <td colspan="3" class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase">Gesamt</td>
+                <td class="px-5 py-3 text-right">
+                    <span class="text-sm font-extrabold text-gray-900 tabular-nums">{{ format_minutes(entries|sum(attribute='dauer_minuten')) }}</span>
+                </td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <div class="p-16 text-center">
+        <div class="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <p class="text-sm text-gray-500 font-medium">Keine Zeiteinträge im gewählten Zeitraum</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function timetrackingForm() {
+    const _contacts = [{% for c in contacts %}{id: {{ c.id }}, name: {{ c.display_name | tojson }}}{{ ',' if not loop.last }}{% endfor %}];
+    return {
+        mode: 'kontakt',
+        timerContactId: '',
+        timerContactSearch: '',
+        showTimerContacts: false,
+        get timerContactsFiltered() {
+            if (!this.timerContactSearch) return _contacts;
+            const q = this.timerContactSearch.toLowerCase();
+            return _contacts.filter(c => c.name.toLowerCase().includes(q));
+        },
+        timerTaetigkeit: 'anbahnung',
+        addContactId: '',
+        addContactSearch: '',
+        showAddContacts: false,
+        get addContactsFiltered() {
+            if (!this.addContactSearch) return _contacts;
+            const q = this.addContactSearch.toLowerCase();
+            return _contacts.filter(c => c.name.toLowerCase().includes(q));
+        },
+        startTimer() {
+            const body = { taetigkeit: this.timerTaetigkeit };
+            if (this.mode === 'kontakt' && this.timerContactId) {
+                body.contact_id = this.timerContactId;
+            }
+            fetch('/timetracking/timer/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            }).then(r => { if (r.ok) window.location.reload(); });
+        }
+    }
+}
+
+function activeTimerDisplay(startIso) {
+    return {
+        elapsed: '0:00',
+        init() {
+            this.timerStart = new Date(startIso + 'Z');
+            this.update();
+            setInterval(() => this.update(), 1000);
+        },
+        update() {
+            const diff = Math.floor((Date.now() - this.timerStart.getTime()) / 1000);
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            this.elapsed = h > 0
+                ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                : `${m}:${String(s).padStart(2,'0')}`;
+        },
+        stopTimer() {
+            fetch('/timetracking/timer/stop', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }).then(r => { if (r.ok) window.location.reload(); });
+        }
+    }
+}
+
+function filterContactSearch(selectedId) {
+    const _filterContacts = [{id: '', name: 'Alle'}, {id: '0', name: 'Allgemein (ohne Kontakt)'}{% for c in contacts %}, {id: '{{ c.id }}', name: {{ c.display_name | tojson }}}{% endfor %}];
+    return {
+        filterContactId: selectedId,
+        filterContactSearch: '',
+        showFilterContacts: false,
+        get filterContactsFiltered() {
+            if (!this.filterContactSearch) return _filterContacts;
+            const q = this.filterContactSearch.toLowerCase();
+            return _filterContacts.filter(c => c.name.toLowerCase().includes(q));
+        },
+        init() {
+            const found = _filterContacts.find(c => String(c.id) === String(this.filterContactId));
+            if (found && found.id !== '') this.filterContactSearch = found.name;
+        }
+    }
+}
+
+function editRowSearch(contactId, contactName) {
+    const _editContacts = [{id: '', name: 'Allgemein'}{% for c in contacts %}, {id: '{{ c.id }}', name: {{ c.display_name | tojson }}}{% endfor %}];
+    return {
+        editing: false,
+        editContactId: contactId,
+        editContactSearch: contactName,
+        showEditContacts: false,
+        get editContactsFiltered() {
+            if (!this.editContactSearch) return _editContacts;
+            const q = this.editContactSearch.toLowerCase();
+            return _editContacts.filter(c => c.name.toLowerCase().includes(q));
+        }
+    }
+}
+</script>
+{% endblock %}

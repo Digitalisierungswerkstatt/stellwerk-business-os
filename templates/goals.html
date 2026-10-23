@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Sales Goals - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="mb-6 fade-up">
+    <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Sales Goals</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Umsatzziele setzen und Fortschritt verfolgen</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-1 sticky top-20">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                </div>
+                Neues Ziel
+            </h2>
+            <form method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Periode</label>
+                    <select name="period_type" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        {% for value, label in period_types %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Startmonat</label>
+                    <input type="date" name="period_start" required
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200">
+                    <p class="text-[11px] text-gray-400 mt-1">Wird auf Monats-/Quartalsanfang gerundet</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ziel-Betrag (EUR)</label>
+                    <input type="number" name="target_amount" step="100" min="0" required placeholder="z.B. 50000"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <button type="submit"
+                        class="w-full px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 text-sm font-semibold shadow-lg shadow-emerald-600/25 transition-all duration-300">
+                    Ziel erstellen
+                </button>
+            </form>
+        </div>
+    </div>
+
+    
+    <div class="lg:col-span-2">
+        {% if goal_data %}
+        <div class="space-y-4">
+            {% for gd in goal_data %}
+            {% set goal = gd.goal %}
+            {% set achieved = gd.achieved %}
+            {% set pct = gd.pct %}
+            {% set open_net = gd.open_net %}
+            {% set paid_w = gd.paid_w %}
+            {% set open_w = gd.open_w %}
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-{{ loop.index }}">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-gray-900">{{ goal.label }}</h3>
+                            {% if goal.is_current %}
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/20">Aktuell</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-0.5">
+                            {{ goal.period_start.strftime('%d.%m.%Y') }} - {{ goal.period_end.strftime('%d.%m.%Y') }}
+                            &middot; {{ 'Quartalsweise' if goal.period_type == 'quarterly' else 'Monatlich' }}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-extrabold tabular-nums {% if pct >= 100 %}text-emerald-600{% elif pct >= 50 %}text-amber-600{% else %}text-gray-600{% endif %}">
+                            {{ pct }}%
+                        </span>
+                        <form action="{{ url_for('sales_goal_delete', id=goal.id) }}" method="POST"
+                              onsubmit="return confirm('Ziel löschen?')">
+                            <button type="submit" class="p-1 text-gray-300 hover:text-red-500 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                
+                <div class="relative">
+                    <div class="h-4 bg-gray-100 rounded-full overflow-hidden flex">
+                        <div class="h-full transition-all duration-700 ease-out
+                            {% if pct >= 100 %}bg-gradient-to-r from-petrol-500 to-gold{% else %}bg-gradient-to-r from-petrol-400 to-petrol-500{% endif %}"
+                             style="width: 0%"
+                             x-data x-init="setTimeout(() => $el.style.width='{{ paid_w }}%', 200)"
+                             title="bezahlt"></div>
+                        {% if open_net > 0 %}
+                        <div class="h-full transition-all duration-700 ease-out"
+                             style="width: 0%; background-image: repeating-linear-gradient(45deg, #d1d5db 0, #d1d5db 4px, #f3f4f6 4px, #f3f4f6 8px);"
+                             x-data x-init="setTimeout(() => $el.style.width='{{ open_w }}%', 200)"
+                             title="offen (fakturiert, noch nicht bezahlt)"></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                
+                <div class="flex justify-between mt-3">
+                    <div>
+                        <span class="text-sm font-bold text-gray-900 tabular-nums">{{ '{:,.0f}'.format(achieved).replace(',', '.') }} &euro;</span>
+                        <span class="text-[11px] text-gray-400 ml-1">erreicht</span>
+                        {% if open_net > 0 %}
+                        <span class="inline-flex items-center gap-1 ml-2 text-[11px] text-gray-400">
+                            <span class="inline-block w-2 h-2 rounded-sm" style="background-image: repeating-linear-gradient(45deg, #d1d5db 0, #d1d5db 2px, #f3f4f6 2px, #f3f4f6 4px);"></span>
+                            {{ '{:,.0f}'.format(open_net).replace(',', '.') }} &euro; offen
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="text-sm font-bold text-gray-500 tabular-nums">{{ '{:,.0f}'.format(goal.target_amount).replace(',', '.') }} &euro;</span>
+                        <span class="text-[11px] text-gray-400 ml-1">Ziel</span>
+                    </div>
+                </div>
+
+                {% if goal.is_current and goal.target_amount > achieved %}
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <p class="text-[11px] text-gray-400">
+                        Noch <span class="font-bold text-gray-600">{{ '{:,.0f}'.format(goal.target_amount - achieved).replace(',', '.') }} &euro;</span> bis zum Ziel
+                    </p>
+                </div>
+                {% endif %}
+
+                {% if pct >= 100 %}
+                <div class="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                    <span class="text-[11px] font-bold text-petrol-600">✦ Ziel erreicht</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-16 text-center fade-up delay-2">
+            <div class="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            </div>
+            <p class="text-gray-500 text-sm font-medium">Noch keine Ziele definiert</p>
+            <p class="text-gray-400 text-xs mt-1">Erstelle dein erstes Umsatzziel über das Formular links</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

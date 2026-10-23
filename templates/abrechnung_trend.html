@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Auslastungs-Trend{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center gap-3 mb-1">
+        <a href="{{ url_for('abrechnung') }}"
+           class="text-sm text-petrol-600 hover:text-petrol-700">&larr; Abrechnung</a>
+    </div>
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">Retainer-Auslastungs-Trend</h1>
+    <p class="text-sm text-gray-500 mb-6">
+        Verbrauchte gegen inkludierte Stunden, Monat für Monat. Gezählt wird geleistete
+        Arbeit (verrechnet und unverrechnet), nicht der offene Saldo. Read-only,
+        Stand {{ today.strftime('%d.%m.%Y') }}.
+    </p>
+
+    <div class="flex items-center gap-2 mb-6">
+        {% set tab = 'px-4 py-2 rounded-lg text-sm font-medium' %}
+        {% for f, f_label in [('12', 'Letzte 12 Monate'), ('24', 'Letzte 24 Monate')] %}
+        <a href="{{ url_for('abrechnung_trend', fenster=f) }}"
+           class="{{ tab }} {% if fenster == f %}bg-petrol-500 text-white{% else %}bg-white border border-gray-200 text-gray-600 hover:border-petrol-300{% endif %}">
+            {{ f_label }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Mandate</p>
+            <p class="text-2xl font-bold text-gray-900">{{ kpi.mandate }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Stunden im Zeitraum</p>
+            <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ '%.1f'|format(kpi.hours_total) }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Überzogen</p>
+            <p class="text-2xl font-bold {% if kpi.over_budget %}text-amber-500{% else %}text-gray-900{% endif %}">{{ kpi.over_budget }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Saldo gesamt</p>
+            <p class="text-2xl font-bold tabular-nums {% if kpi.saldo_total < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ '%+.1f'|format(kpi.saldo_total) }} h
+            </p>
+            
+            <p class="text-xs text-gray-400 mt-1 tabular-nums">
+                davon {{ '%+.1f'|format(kpi.saldo_verrechenbar) }} h mit True-up
+            </p>
+        </div>
+    </div>
+
+    {% for r in rows %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+        <div class="flex items-baseline justify-between mb-1">
+            <h2 class="text-lg font-semibold text-gray-900">
+                <a href="{{ url_for('contact_view', id=r.contact.id) }}"
+                   class="hover:text-petrol-600">{{ r.label }}</a>
+                <span class="text-xs font-normal text-gray-400 ml-2">{{ r.contact.abrechnungsmodell or '—' }}</span>
+            </h2>
+            <span class="text-xs text-gray-500 tabular-nums">
+                {% if r.monthly_hours is not none %}
+                {{ '%.1f'|format(r.monthly_hours) }} h/Monat inkludiert · {{ r.covered_months }} Vertragsmonat(e)
+                {% else %}
+                kein Stunden-Budget{% if r.retainer %} ({{ '%.0f'|format(r.retainer.monthly_fee) }} € Fixgebühr){% endif %}
+                {% endif %}
+            </span>
+        </div>
+
+        
+        <p class="text-sm mb-4">
+            {% if r.saldo_total is not none %}
+            <span class="text-gray-500">{{ '%.1f'|format(r.hours_covered) }} h verbraucht von
+                {{ '%.1f'|format(r.budget_total) }} h inkludiert:</span>
+            <span class="font-semibold {% if r.saldo_total < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ '%+.1f'|format(r.saldo_total) }} h
+                ({{ 'überzogen' if r.saldo_total < 0 else 'Reserve' }})
+            </span>
+            {% else %}
+            <span class="text-gray-500">{{ '%.1f'|format(r.hours_total) }} h geleistet, keine Budgetlinie zum Vergleich</span>
+            {% endif %}
+            
+            {% if r.hours_outside > 0 and r.saldo_total is not none %}
+            <span class="text-xs text-gray-400 block mt-1">
+                Dazu {{ '%.1f'|format(r.hours_outside) }} h außerhalb der Retainer-Laufzeit, die nicht
+                in den Saldo zählen. Ob sie über eine Setup- oder Projektrechnung abgedeckt sind, sagt
+                diese Sicht nicht: die Zeiterfassung ordnet Stunden keiner Rechnung zu.
+            </span>
+            {% endif %}
+        </p>
+
+        
+        <p class="text-xs text-gray-400 mb-4 pb-3 border-b border-gray-50">
+            {% if r.saldo_verrechenbar %}
+            Abschlag mit True-up: Mehraufwand über die inkludierten Stunden ist abrechenbar.
+            {% else %}
+            Fix-Pauschale ohne True-up: der Saldo zeigt die Marge, nicht eine Forderung. Die
+            Zeiterfassung ist hier Self-Tracking und kann unvollständig sein.
+            {% endif %}
+            {% if r.invoice_count %}
+            Bezahlt im Zeitraum: {{ '%.0f'|format(r.revenue_window) }} € aus
+            {{ r.invoice_count }} Beleg{{ 'en' if r.invoice_count != 1 else '' }}
+            (Pauschalen und Einmalrechnungen zusammen){% if r.hours_total > 0 %},
+            das sind {{ '%.0f'|format(r.revenue_window / r.hours_total) }} € je geleistete Stunde{% endif %}.
+            {% else %}
+            Im Zeitraum wurde keine Rechnung bezahlt.
+            {% endif %}
+        </p>
+
+        
+        {% set peak = r.peak_h if r.peak_h > 0 else 1 %}
+        <div class="space-y-1">
+            {% for m in r.months %}
+            {% set over = m.budget_h is not none and m.hours > m.budget_h %}
+            <div class="flex items-center gap-3 text-xs">
+                <span class="w-24 flex-shrink-0 text-right {% if m.under_contract %}text-gray-500{% else %}text-gray-300{% endif %}">{{ m.label }}</span>
+                <div class="flex-1 relative h-5 bg-gray-50 rounded">
+                    
+                    <div class="absolute inset-y-0 left-0 rounded {% if over %}bg-amber-400{% elif m.budget_h is none %}bg-petrol-100{% else %}bg-petrol-500{% endif %}"
+                         style="width: {{ '%.1f'|format(m.hours / peak * 100) }}%"
+                         title="{{ m.label }}: {{ '%.2f'|format(m.hours) }} h{% if m.budget_h is not none %} von {{ '%.1f'|format(m.budget_h) }} h inkludiert{% else %} (kein Budget in diesem Monat){% endif %}"></div>
+                    {% if m.budget_h is not none %}
+                    <div class="absolute inset-y-0 w-0.5 bg-navy"
+                         style="left: {{ '%.1f'|format(m.budget_h / peak * 100) }}%"
+                         title="inkludiert: {{ '%.1f'|format(m.budget_h) }} h"></div>
+                    {% endif %}
+                </div>
+                <span class="w-14 flex-shrink-0 text-right tabular-nums {% if m.hours > 0 %}text-gray-700{% else %}text-gray-300{% endif %}">{{ '%.1f'|format(m.hours) }} h</span>
+                <span class="w-16 flex-shrink-0 text-right tabular-nums">
+                    {% if m.saldo_h is not none %}
+                    <span class="{% if m.saldo_h < 0 %}text-red-500{% else %}text-gray-400{% endif %}">{{ '%+.1f'|format(m.saldo_h) }}</span>
+                    {% else %}
+                    <span class="text-gray-300">—</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if r.contributors %}
+        <div class="mt-4 pt-3 border-t border-gray-50">
+            <p class="text-xs text-gray-400 mb-2">
+                Stunden dieser Kooperation liegen auf den Endkunden, das Budget am Partner-Retainer:
+            </p>
+            <div class="space-y-1">
+                {% for c in r.contributors %}
+                <div class="flex items-center gap-3 text-xs text-gray-500">
+                    
+                    <span class="w-24 flex-shrink-0 text-right truncate" title="{{ c.name }}">↳ {{ c.name }}</span>
+                    <div class="flex-1 relative h-3 bg-gray-50 rounded">
+                        <div class="absolute inset-y-0 left-0 rounded bg-petrol-300"
+                             style="width: {{ '%.1f'|format(c.hours_total / (r.hours_total if r.hours_total > 0 else 1) * 100) }}%"
+                             title="{{ c.name }}: {{ '%.2f'|format(c.hours_total) }} h · stärkster Monat {{ c.busiest or '—' }}"></div>
+                    </div>
+                    <span class="w-14 flex-shrink-0 text-right tabular-nums">{{ '%.1f'|format(c.hours_total) }} h</span>
+                    <span class="w-16 flex-shrink-0"></span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-2xl border border-gray-100 px-4 py-10 text-center text-gray-400">
+        Kein Mandat mit Retainer-Modell im Zeitraum.
+    </div>
+    {% endfor %}
+
+    <p class="text-xs text-gray-400 mt-2">
+        Balkenlänge = verbrauchte Stunden, senkrechte Marke = inkludierte Stunden des Monats,
+        Skala je Mandat auf seinen stärksten Monat normiert. Der Startmonat zählt voll, auch
+        bei Vertragsbeginn zur Monatsmitte: dieselbe Konvention wie im Abrechnungs-Cockpit.
+        Ein Monat ohne Balken heißt, dass in diesem Monat nichts erfasst wurde.
+    </p>
+    <p class="text-xs text-gray-400 mt-2">
+        Was diese Sicht nicht kann: sie ordnet keine Stunde einer Rechnung zu. Setup- und
+        Projektrechnungen deckten Arbeit ab, die vor dem Retainer lag oder neben ihm läuft,
+        und im Datenbestand ist keine Zeit mit einem Beleg verknüpft. Ein negativer Saldo
+        heißt deshalb nicht automatisch unbezahlte Arbeit. Für die Gegenüberstellung von
+        Umsatz und Stunden je Mandat gibt es die Profitabilitäts-Sicht.
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Bank-Abgleich{% endblock %}
+{% block content %}
+
+{% macro signal_badge(signal) -%}
+{%- set labels = {
+    'number_exact': ('Rechnungsnummer', 'bg-emerald-50 text-emerald-700 border-emerald-200'),
+    'amount_exact': ('Betrag exakt', 'bg-sky-50 text-sky-700 border-sky-200'),
+    'amount_partial': ('Betrag geringer', 'bg-amber-50 text-amber-700 border-amber-200'),
+    'in_window': ('Zeitfenster', 'bg-gray-50 text-gray-500 border-gray-200'),
+    'partner_match': ('Name passt', 'bg-gray-50 text-gray-500 border-gray-200'),
+    'iban_known': ('IBAN bekannt', 'bg-gray-50 text-gray-500 border-gray-200'),
+} -%}
+{%- set label, cls = labels.get(signal, (signal, 'bg-gray-50 text-gray-500 border-gray-200')) -%}
+<span class="text-[10px] px-1.5 py-0.5 rounded border {{ cls }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro tx_row(row, allow_confirm) %}
+{% set tx = row.tx %}
+<div class="border border-gray-100 rounded-xl p-4 mb-3 bg-white">
+    <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+            <p class="text-sm font-semibold {{ 'text-emerald-700' if row.direction == 'in' else 'text-gray-700' }}">
+                {{ '%.2f'|format(tx.amount|float) }} €
+                <span class="text-xs font-normal text-gray-400 ml-2">
+                    {{ tx.booking_date.strftime('%d.%m.%Y') }}
+                    {% if tx.currency != 'EUR' %}· {{ tx.currency }}{% endif %}
+                </span>
+            </p>
+            <p class="text-sm text-gray-700 mt-0.5">{{ tx.partner_name or '(kein Partner)' }}</p>
+            <p class="text-xs text-gray-500 mt-0.5 break-words">{{ tx.reference or '(kein Verwendungszweck)' }}</p>
+            {% for hint in row.hints %}
+            <p class="text-xs text-amber-700 mt-1">{{ hint }}</p>
+            {% endfor %}
+        </div>
+        <form action="{{ url_for('bank_ignore', tx_id=tx.id) }}" method="POST" class="flex-shrink-0"
+              onsubmit="return confirm('Bank-Zeile über {{ '%.2f'|format(tx.amount|float) }} € vom {{ tx.booking_date.strftime('%d.%m.%Y') }} als „braucht keinen Beleg“ wegräumen? Die Zeile bleibt gespeichert, verschwindet aber aus dieser Liste. An keinem Beleg wird etwas geändert.');">
+            <input type="hidden" name="note" value="">
+            <button type="submit" class="text-xs text-gray-400 hover:text-gray-600 underline">
+                kein Beleg nötig
+            </button>
+        </form>
+    </div>
+
+    {% if row.candidates %}
+    <form action="{{ url_for('bank_confirm', tx_id=tx.id) }}" method="POST" class="mt-3 pt-3 border-t border-gray-50"
+          onsubmit="return confirm('Beleg auf „bezahlt“ setzen und als Zahldatum den {{ tx.booking_date.strftime('%d.%m.%Y') }} eintragen (das Buchungsdatum der Bank, nicht heute)? Das wirkt sofort auf Goals, MRR und die Abrechnungs-Sicht.');">
+        <div class="space-y-1.5">
+            {% for cand in row.candidates %}
+            <label class="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="target" required
+                       value="{{ cand.kind }}:{{ cand.id }}"
+                       {% if row.candidates|length == 1 %}checked{% endif %}
+                       class="text-petrol-500">
+                <span class="font-medium text-gray-800">{{ cand.number }}</span>
+                {% if cand.kunde %}
+                <span class="text-gray-500 text-xs truncate">{{ cand.kunde.organisation or (cand.kunde.vorname ~ ' ' ~ cand.kunde.nachname) }}</span>
+                {% endif %}
+                {% if cand.beleg %}
+                <span class="text-xs text-gray-400">
+                    {% if cand.kind == 'invoice' %}{{ '%.2f'|format(cand.beleg.total_gross) }} €
+                    {% else %}{{ '%.2f'|format(cand.beleg.gross_amount|float) }} €{% endif %}
+                </span>
+                {% endif %}
+                {% if cand.amount_delta %}
+                <span class="text-xs text-amber-600">Differenz {{ '%+.2f'|format(cand.amount_delta) }} €</span>
+                {% endif %}
+                <span class="flex gap-1 ml-auto flex-shrink-0">
+                    {% for signal in cand.signals %}{{ signal_badge(signal) }}{% endfor %}
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+        <div class="flex justify-end mt-2">
+            <button type="submit"
+                    class="text-sm px-4 py-1.5 rounded-lg bg-petrol-500 text-white hover:bg-petrol-600 font-medium">
+                Bestätigen und auf bezahlt setzen
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<div class="max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">Bank-Abgleich</h1>
+    <p class="text-sm text-gray-500 mb-6">
+        Zahlungen gegen offene Belege. Jede Buchung wird vorgeschlagen und erst nach deiner
+        Bestätigung geschrieben. Zahldatum ist immer das Buchungsdatum der Bank.
+    </p>
+
+    <div class="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
+        <form action="{{ url_for('bank_import_upload') }}" method="POST" enctype="multipart/form-data"
+              class="flex items-center gap-3 flex-wrap">
+            <input type="file" name="bank_file" accept=".csv" required
+                   class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg
+                          file:border-0 file:bg-gray-100 file:text-gray-700 file:text-sm">
+            <button type="submit"
+                    class="text-sm px-4 py-2 rounded-lg bg-petrol-500 text-white hover:bg-petrol-600 font-medium">
+                Export einlesen
+            </button>
+            <span class="text-xs text-gray-400">
+                N26-CSV. Ein doppelt eingelesener Export erzeugt keine Dubletten.
+            </span>
+        </form>
+        {% if imports %}
+        <div class="mt-3 pt-3 border-t border-gray-50 text-xs text-gray-500">
+            Zuletzt eingelesen:
+            {% for imp in imports[:3] %}
+            <span class="inline-block mr-3">
+                {{ imp.filename }} ({{ imp.new_count }} neu{% if imp.duplicate_count %}, {{ imp.duplicate_count }} Dubletten{% endif %})
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Sicher</p>
+            <p class="text-2xl font-bold text-emerald-600">{{ kpi.sicher }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Zu entscheiden</p>
+            <p class="text-2xl font-bold text-amber-500">{{ kpi.unsicher }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Beleg fehlt</p>
+            <p class="text-2xl font-bold text-gray-900">{{ kpi.beleg_fehlt }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ '%.0f'|format(kpi.beleg_fehlt_eur) }} € Abbuchungen</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Eingänge ohne Zuordnung</p>
+            <p class="text-2xl font-bold text-gray-900">{{ kpi.kein_match }}</p>
+        </div>
+    </div>
+
+    {% if not (kpi.sicher or kpi.unsicher or kpi.kein_match or kpi.beleg_fehlt) %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        <p class="text-sm text-gray-500">
+            Keine offenen Bank-Zeilen. Lade einen Export hoch, um abzugleichen.
+        </p>
+        {% if open_invoices %}
+        <p class="text-xs text-gray-400 mt-2">
+            Offen wären aktuell:
+            {% for inv in open_invoices %}{{ inv.number }} ({{ '%.2f'|format(inv.total_gross) }} €){% if not loop.last %} · {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if groups.sicher %}
+    <h2 class="text-sm font-semibold text-gray-700 mb-2 mt-6">
+        Sicher <span class="font-normal text-gray-400">— Rechnungsnummer und Betrag stimmen, genau ein Beleg passt</span>
+    </h2>
+    {% for row in groups.sicher %}{{ tx_row(row, True) }}{% endfor %}
+    {% endif %}
+
+    {% if groups.unsicher %}
+    <h2 class="text-sm font-semibold text-gray-700 mb-2 mt-6">
+        Zu entscheiden <span class="font-normal text-gray-400">— mehrere Belege passen oder der Betrag weicht ab</span>
+    </h2>
+    <p class="text-xs text-gray-500 mb-3">
+        Ein passender Betrag allein ist kein Beweis: die Monatspauschale ist jeden Monat gleich hoch,
+        und nicht jede Rechnung hat einen eindeutigen Betrag. Deshalb landet hier alles, was
+        keine Rechnungsnummer im Verwendungszweck trägt.
+    </p>
+    {% for row in groups.unsicher %}{{ tx_row(row, True) }}{% endfor %}
+    {% endif %}
+
+    {% if groups.beleg_fehlt %}
+    <h2 class="text-sm font-semibold text-gray-700 mb-2 mt-6">
+        Beleg fehlt <span class="font-normal text-gray-400">— Abbuchungen ohne Eingangsrechnung</span>
+    </h2>
+    <p class="text-xs text-gray-500 mb-3">
+        Diese Ausgaben sind vom Konto gegangen, ohne dass ein Beleg im Stellwerk liegt.
+        Entweder Eingangsrechnung erfassen oder als „kein Beleg nötig“ wegräumen.
+    </p>
+    {% for row in groups.beleg_fehlt %}{{ tx_row(row, False) }}{% endfor %}
+    {% endif %}
+
+    {% if groups.kein_match %}
+    <h2 class="text-sm font-semibold text-gray-700 mb-2 mt-6">
+        Kein Match <span class="font-normal text-gray-400">— kein offener Beleg passt</span>
+    </h2>
+    {% for row in groups.kein_match %}{{ tx_row(row, False) }}{% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

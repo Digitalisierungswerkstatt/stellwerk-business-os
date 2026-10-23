@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Profitabilität{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex items-center gap-3 mb-1">
+        <a href="{{ url_for('abrechnung') }}"
+           class="text-sm text-petrol-600 hover:text-petrol-700">&larr; Abrechnung</a>
+    </div>
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">Kunden-Profitabilität</h1>
+    <p class="text-sm text-gray-500 mb-6">
+        Effektiver Stundensatz je Mandat = bezahlter Umsatz ÷ alle geleisteten Stunden
+        (verrechnet + unverrechnet). Vergleichsspalte: hinterlegter Stundensatz
+        (Fallback {{ '%.0f'|format(default_rate) }} €). Read-only, Stand {{ today.strftime('%d.%m.%Y') }}.
+    </p>
+
+    
+    <div class="flex items-center gap-2 mb-6">
+        {% set tab = 'px-4 py-2 rounded-lg text-sm font-medium' %}
+        <a href="{{ url_for('abrechnung_profitabilitaet', zeitraum='12m') }}"
+           class="{{ tab }} {% if zeitraum == '12m' %}bg-petrol-500 text-white{% else %}bg-white border border-gray-200 text-gray-600 hover:border-petrol-300{% endif %}">
+            Letzte 12 Monate
+        </a>
+        <a href="{{ url_for('abrechnung_profitabilitaet', zeitraum='gesamt') }}"
+           class="{{ tab }} {% if zeitraum == 'gesamt' %}bg-petrol-500 text-white{% else %}bg-white border border-gray-200 text-gray-600 hover:border-petrol-300{% endif %}">
+            Gesamt
+        </a>
+    </div>
+
+    {% set seg_meta = [
+        ('regulaer', 'Reguläre Mandate', 'Effektiver Satz direkt mit dem hinterlegten Stundensatz vergleichbar (Stundenbasis, Retainer mit True-up, offene Angebote, pausierte Mandate, unklassifiziert). Hier werden die Stunden real abgerechnet.'),
+        ('pauschale', 'Pauschale & Fix-Retainer', 'Fixe Gebühr ohne True-up (Projekt-Fix, Fix-Retainer). Zeiterfassung ist reines Self-Tracking und evtl. unvollständig. Der effektive Satz ist eine Untergrenze und kann bei wenig geloggter Zeit unrealistisch hoch wirken.'),
+        ('partner', 'Partner- / Fremdvergütung', 'Vergütung läuft nicht über DW-Rechnungen (Agentur-Partner, externer Aufwand). Umsatz hier bildet den Ertrag nur unvollständig ab.'),
+        ('akquise', 'Akquise-Aufwand', 'Verlorene Leads, die nie ein Mandat waren: keine einzige bezahlte Rechnung. Die Stunden sind Vertriebskosten, kein schwaches Mandat, deshalb kein effektiver Satz, sondern der Gegenwert zum Nominalsatz. Ein verlorener Kunde, der früher abgerechnet wurde, bleibt in seinem Leistungs-Segment.'),
+        ('pro_bono', 'Pro bono', 'Unentgeltliche Arbeit. 0 € ist hier Absicht und keine Fehlleistung, ein effektiver Satz wäre eine Division durch eine Entscheidung. Sichtbar bleibt, was die Arbeit gekostet hätte.')
+    ] %}
+
+    {% for seg, seg_title, seg_note in seg_meta %}
+    {% set rows = segments[seg] %}
+    {% set s = summary[seg] %}
+    {% set ist_kostentopf = seg in kosten_segmente %}
+    <div class="mb-8">
+        <div class="flex items-baseline justify-between mb-2">
+            <h2 class="text-lg font-semibold text-gray-900">{{ seg_title }}</h2>
+            {% if rows %}
+            <span class="text-xs text-gray-500 tabular-nums">
+                {% if ist_kostentopf %}
+                {{ s.count }} Kontakt(e) · {{ '%.1f'|format(s.hours) }} h ·
+                Gegenwert {{ '%.0f'|format(s.notional_cost) }} €
+                {% else %}
+                {{ s.count }} Mandat(e) · {{ '%.0f'|format(s.revenue) }} € ·
+                {{ '%.1f'|format(s.hours) }} h ·
+                Ø {{ '%.0f €/h'|format(s.blended_rate) if s.blended_rate is not none else '—' }}
+                {% endif %}
+            </span>
+            {% endif %}
+        </div>
+        <p class="text-xs text-gray-400 mb-3">{{ seg_note }}</p>
+
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                    <tr>
+                        <th class="text-left px-4 py-3">Kunde</th>
+                        <th class="text-left px-4 py-3">Modell</th>
+                        <th class="text-right px-4 py-3">Umsatz</th>
+                        <th class="text-right px-4 py-3">Stunden</th>
+                        <th class="text-right px-4 py-3">Eff. Satz</th>
+                        <th class="text-right px-4 py-3">Nominal</th>
+                        <th class="text-right px-4 py-3">Δ</th>
+                        <th class="text-left px-4 py-3">Hinweis</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for r in rows %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">
+                            <a href="{{ url_for('contact_view', id=r.contact.id) }}"
+                               class="hover:text-petrol-600">{{ r.label or r.contact.display_name }}</a>
+                        </td>
+                        <td class="px-4 py-3 text-gray-500">{{ r.mode or '—' }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ '%.0f €'|format(r.revenue) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ '%.1f'|format(r.hours) }} h</td>
+                        <td class="px-4 py-3 text-right tabular-nums font-semibold">
+                            {{ '%.0f €'|format(r.effective_rate) if r.effective_rate is not none else '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-right tabular-nums text-gray-400">{{ '%.0f €'|format(r.nominal_rate) }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">
+                            {% if r.delta is not none %}
+                            <span class="{% if r.delta < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {{ '%+.0f €'|format(r.delta) }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-300">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-xs text-gray-400">
+                            {% if ist_kostentopf %}{% if r.notional_cost is not none %}Gegenwert {{ '%.0f'|format(r.notional_cost) }} € zu {{ '%.0f'|format(r.nominal_rate) }} €/h{% else %}kein Nominalsatz hinterlegt{% endif %}
+                            {% elif r.contributors %}Kooperation: Umsatz ÷ Endkunden-Stunden
+                            {% elif r.kind == 'nur_umsatz' %}keine Zeit erfasst
+                            {% elif r.kind == 'nur_zeit' %}kein bezahlter Umsatz im Zeitraum
+                            {% elif r.self_tracking %}Self-Tracking (Untergrenze)
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if r.contributors %}
+                    {% for c in r.contributors %}
+                    <tr class="bg-gray-50/40 text-gray-500">
+                        <td class="px-4 py-2 pl-10 text-xs">↳ {{ c.name }}</td>
+                        <td class="px-4 py-2 text-xs">Endkunde</td>
+                        <td class="px-4 py-2 text-right tabular-nums text-xs">{{ '%.0f €'|format(c.revenue) if c.revenue else '—' }}</td>
+                        <td class="px-4 py-2 text-right tabular-nums text-xs">{{ '%.1f'|format(c.hours) }} h</td>
+                        <td class="px-4 py-2"></td>
+                        <td class="px-4 py-2"></td>
+                        <td class="px-4 py-2"></td>
+                        <td class="px-4 py-2 text-xs text-gray-400">Std auf Partneragentur-Retainer</td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                    {% else %}
+                    <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Kein Mandat in diesem Segment.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+
+    <p class="text-xs text-gray-400 mt-2">
+        Umsatz = bezahlte Rechnungen (inkl. Honorarnoten und Retainer-Gebühren) nach Zahldatum;
+        Stornos sind umsatzneutral. Ein negatives Δ heißt: das Mandat verdient weniger pro Stunde
+        als der hinterlegte Satz.
+    </p>
+</div>
+{% endblock %}

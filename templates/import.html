@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Import - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6 fade-up">
+        <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Excel Import</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Kontakte aus Excel-Datei importieren</p>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+        <div class="p-6">
+            <form method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Dateipfad zur Excel-Datei</label>
+                    <div class="relative group">
+                        <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                        </div>
+                        <input type="text" name="filepath" value="{{ default_path }}"
+                               placeholder="C:\Pfad\zur\datei.xlsx"
+                               class="w-full pl-10 pr-3.5 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200 font-mono placeholder:text-gray-300">
+                    </div>
+                    <p class="mt-2 text-xs text-gray-400">Vollständiger Pfad zur .xlsx Datei</p>
+                </div>
+                <div class="pt-1 flex gap-3">
+                    <button type="button" onclick="previewImport()"
+                            class="inline-flex items-center gap-2 px-5 py-3 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Vorschau
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl hover:from-petrol-600 hover:to-indigo-800 text-sm font-semibold shadow-lg shadow-petrol-500/25 transition-all duration-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                        Import starten
+                    </button>
+                </div>
+                
+                <div id="preview-result" class="hidden mt-4 p-4 rounded-xl border border-gray-200/60 bg-gray-50">
+                    <div id="preview-loading" class="hidden text-center py-4">
+                        <svg class="w-5 h-5 animate-spin text-petrol-500 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        <p class="text-xs text-gray-400 mt-1">Datei wird analysiert...</p>
+                    </div>
+                    <div id="preview-content" class="hidden"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <div class="mt-6 bg-gradient-to-br from-indigo-50 to-violet-50/50 rounded-2xl border border-indigo-100/80 p-6 fade-up delay-2">
+        <h2 class="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-petrol-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-petrol-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>
+            </div>
+            Smart Import
+        </h2>
+        <ul class="text-sm text-indigo-800/80 space-y-2.5">
+            <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Spaltenüberschriften in der ersten Zeile erforderlich
+            </li>
+            <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Bestehende Kontakte werden per E-Mail oder Name+Organisation erkannt und aktualisiert
+            </li>
+            <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Leere Excel-Felder überschreiben keine bestehenden Daten
+            </li>
+            <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                Leere Zeilen werden übersprungen
+            </li>
+        </ul>
+    </div>
+
+    
+    <div class="mt-4 bg-white rounded-2xl border border-gray-200/60 shadow-sm p-6 fade-up delay-3 hover:shadow-md transition-shadow duration-300">
+        <h2 class="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v.75"/></svg>
+            </div>
+            Erkannte Spaltenüberschriften
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {% set columns = [
+                'organisation, firma', 'website, web, url', 'mail organisation',
+                'telefon organisation', 'in a nutshell', 'land, country',
+                'bundesland, state', 'sprache 1, sprache 2', 'vorname, first name',
+                'nachname, last name', 'mail person, email', 'telefon person, phone',
+                'position, job title', 'anrede, salutation', 'linkedin',
+                'kontaktiert, contacted', 'wie, how', 'kommentare, notes',
+                'erinnerung, reminder', 'status, phase'
+            ] %}
+            {% for col in columns %}
+            <div class="px-2.5 py-1.5 bg-gray-50 rounded-lg text-xs text-gray-500 font-medium">{{ col }}</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImport() {
+    const filepath = document.querySelector('[name=filepath]').value.trim();
+    if (!filepath) return;
+    const result = document.getElementById('preview-result');
+    const loading = document.getElementById('preview-loading');
+    const content = document.getElementById('preview-content');
+    result.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+
+    const form = new FormData();
+    form.append('filepath', filepath);
+    fetch('/import/preview', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+            if (data.error) {
+                content.innerHTML = `<p class="text-sm text-red-600 font-medium">${escapeHtml(data.error)}</p>`;
+                return;
+            }
+            let html = `<div class="grid grid-cols-3 gap-3 mb-3">
+                <div class="p-3 bg-emerald-50 rounded-lg text-center">
+                    <p class="text-lg font-extrabold text-emerald-600">${data.new.length}</p>
+                    <p class="text-[11px] text-emerald-500 font-bold">Neue Kontakte</p>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-lg text-center">
+                    <p class="text-lg font-extrabold text-amber-600">${data.update.length}</p>
+                    <p class="text-[11px] text-amber-500 font-bold">Aktualisierungen</p>
+                </div>
+                <div class="p-3 bg-gray-100 rounded-lg text-center">
+                    <p class="text-lg font-extrabold text-gray-600">${data.skip}</p>
+                    <p class="text-[11px] text-gray-400 font-bold">Übersprungen</p>
+                </div>
+            </div>`;
+            if (data.update.length > 0) {
+                html += '<p class="text-[11px] font-bold text-amber-600 uppercase tracking-wider mb-1.5">Duplikate (werden aktualisiert)</p><div class="space-y-1 mb-3">';
+                data.update.forEach(u => {
+                    html += `<div class="flex items-center justify-between p-2 bg-amber-50/50 rounded-lg">
+                        <span class="text-xs text-gray-700">${escapeHtml(u.name)} <span class="text-gray-400">${escapeHtml(u.email)}</span></span>
+                        <a href="/contacts/${encodeURIComponent(u.existing_id)}" target="_blank" class="text-[11px] text-petrol-600 font-semibold">→ ${escapeHtml(u.existing_name)}</a>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            if (data.new.length > 0 && data.new.length <= 10) {
+                html += '<p class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1.5">Neue Kontakte</p><div class="space-y-1">';
+                data.new.forEach(n => {
+                    html += `<div class="flex items-center gap-2 p-2 bg-emerald-50/50 rounded-lg">
+                        <span class="text-xs text-gray-700">${escapeHtml(n.name)}</span>
+                        <span class="text-[11px] text-gray-400">${escapeHtml(n.email)}</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            content.innerHTML = html;
+        })
+        .catch(() => {
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+            content.innerHTML = '<p class="text-sm text-red-600">Fehler bei der Vorschau</p>';
+        });
+}
+</script>
+{% endblock %}

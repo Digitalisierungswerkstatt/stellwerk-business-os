@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infrastruktur-Übergabe: {{ contact.display_name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Lato:wght@300;400;700&display=swap');
+        :root {
+            --navy: #202C59;
+            --petrol: #00707A;
+            --petrol-light: #E8F4F5;
+            --gold: #C5A944;
+            --text-dark: #1a1a1a;
+            --text-body: #333333;
+            --text-muted: #666666;
+            --border: #E8E4DC;
+            --warm-bg: #F9F6F0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Lato', sans-serif; font-size: 11pt; line-height: 1.6; color: var(--text-body); background: #fff; max-width: 210mm; margin: 0 auto; padding: 15mm 20mm; }
+        h1 { font-family: 'Montserrat', sans-serif; font-size: 20pt; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+        h2 { font-family: 'Montserrat', sans-serif; font-size: 14pt; font-weight: 600; color: var(--navy); margin-top: 28px; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 2px solid var(--gold); }
+        h3 { font-family: 'Montserrat', sans-serif; font-size: 11pt; font-weight: 600; color: var(--petrol); margin-top: 18px; margin-bottom: 6px; }
+        p { margin-bottom: 8px; }
+        .subtitle { font-size: 12pt; color: var(--text-muted); margin-bottom: 20px; }
+        .header-bar { background: var(--navy); color: #fff; padding: 16px 20px; margin: -15mm -20mm 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-bar .brand { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13pt; }
+        .header-bar .meta { font-size: 9pt; text-align: right; opacity: 0.8; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+        .info-card { background: var(--warm-bg); border-radius: 6px; padding: 14px 16px; border: 1px solid var(--border); }
+        .info-card .label { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--petrol); margin-bottom: 4px; }
+        .info-card .value { font-weight: 700; color: var(--text-dark); }
+        .info-card .detail { font-size: 10pt; color: var(--text-muted); }
+        .credential-box { background: var(--warm-bg); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; margin: 8px 0; font-size: 10pt; }
+        .credential-box .field { margin-bottom: 4px; }
+        .credential-box .field-label { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 9pt; color: var(--petrol); }
+        .status { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 9pt; font-weight: 600; font-family: 'Montserrat', sans-serif; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-needs_client { background: #e8f4f5; color: var(--petrol); }
+        .status-inactive { background: #e9ecef; color: #495057; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 10pt; }
+        th { background: var(--navy); color: #fff; font-family: 'Montserrat', sans-serif; font-weight: 600; text-align: left; padding: 8px 10px; font-size: 9pt; }
+        td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        tr:nth-child(even) td { background: var(--warm-bg); }
+        .highlight-box { background: var(--petrol-light); border-left: 4px solid var(--petrol); padding: 12px 16px; margin: 12px 0; border-radius: 0 4px 4px 0; }
+        .footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 8pt; color: var(--text-muted); text-align: center; }
+        @media print { body { padding: 10mm 15mm; } .header-bar { margin: -10mm -15mm 20px; } }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">
+    <div class="brand">Musterwerkstatt</div>
+    <div class="meta">Infrastruktur-Übergabe{% if mode == 'agency' %} (Intern){% elif mode == 'both' %} (Komplett){% endif %}<br>Stand: {{ now.strftime('%B %Y') }}</div>
+</div>
+
+<h1>Konten und Zugänge</h1>
+<p class="subtitle">{{ contact.display_name }}</p>
+
+<div class="info-grid">
+    <div class="info-card">
+        <div class="label">Kunde</div>
+        <div class="value">{{ contact.display_name }}</div>
+        {% if contact.full_name and contact.full_name != contact.display_name %}<div class="detail">{{ contact.full_name }}</div>{% endif %}
+        {% if contact.strasse %}<div class="detail">{{ contact.strasse }}{% if contact.plz %}, {{ contact.plz }} {{ contact.stadt }}{% endif %}</div>{% endif %}
+    </div>
+    <div class="info-card">
+        <div class="label">Website</div>
+        <div class="value">{{ contact.website or 'Nicht hinterlegt' }}</div>
+    </div>
+    <div class="info-card">
+        <div class="label">Betreuung</div>
+        <div class="value">Musterwerkstatt</div>
+        <div class="detail">Max Mustermann</div>
+        <div class="detail">office@musterwerkstatt.example</div>
+    </div>
+    <div class="info-card">
+        <div class="label">Konten gesamt</div>
+        <div class="value">{{ accounts|length }}</div>
+        <div class="detail">{{ accounts|selectattr('status', 'equalto', 'active')|list|length }} aktiv, {{ accounts|selectattr('status', 'equalto', 'pending')|list|length }} ausstehend</div>
+    </div>
+</div>
+
+<div class="highlight-box">
+    <strong>Wozu dieses Dokument?</strong> Hier sind alle Plattformen und Konten dokumentiert, die für Ihr Online Marketing eingerichtet wurden oder werden. So haben Sie jederzeit den Überblick, warum ein Konto existiert und wie Sie darauf zugreifen.
+</div>
+
+{% set status_labels = {'active': 'Aktiv', 'pending': 'Ausstehend', 'needs_client': 'Vom Kunden', 'inactive': 'Inaktiv'} %}
+{% set current_cat = namespace(value='') %}
+{% for acc in accounts %}
+    {% if acc.tool_type.category != current_cat.value %}
+        {% set current_cat.value = acc.tool_type.category %}
+        <h2>{{ category_labels.get(acc.tool_type.category, acc.tool_type.category) }}</h2>
+    {% endif %}
+
+    <h3>{{ acc.tool_type.name }}</h3>
+    {% if acc.notes %}<p>{{ acc.notes }}</p>{% endif %}
+    <div class="credential-box">
+        <div class="field"><span class="field-label">Status:</span> <span class="status status-{{ acc.status }}">{{ status_labels.get(acc.status, acc.status) }}</span></div>
+        {% if acc.account_id %}<div class="field"><span class="field-label">Konto-ID:</span> {{ acc.account_id }}</div>{% endif %}
+        {% if mode in ('agency', 'both') and (acc.login_email or acc.login_password) %}
+        <div class="field"><span class="field-label">{% if mode == 'both' %}Agentur-Login:{% else %}Login:{% endif %}</span> {{ acc.login_email or '' }}</div>
+        {% if acc.login_password %}<div class="field"><span class="field-label">{% if mode == 'both' %}Agentur-Passwort:{% else %}Passwort:{% endif %}</span> {{ acc.login_password }}</div>{% endif %}
+        {% endif %}
+        {% if mode in ('client', 'both') and (acc.client_login_email or acc.client_login_password) %}
+        <div class="field"><span class="field-label">{% if mode == 'both' %}Kunden-Login:{% else %}Login:{% endif %}</span> {{ acc.client_login_email or '' }}</div>
+        {% if acc.client_login_password %}<div class="field"><span class="field-label">{% if mode == 'both' %}Kunden-Passwort:{% else %}Passwort:{% endif %}</span> {{ acc.client_login_password }}</div>{% endif %}
+        {% endif %}
+        {% if acc.url %}<div class="field"><span class="field-label">Link:</span> {{ acc.url }}</div>{% endif %}
+    </div>
+{% endfor %}
+
+{% if accounts %}
+<h2>Übersichtstabelle</h2>
+<table>
+    <tr><th>Plattform</th><th>Konto-ID</th><th>Status</th><th>Login</th></tr>
+    {% for acc in accounts %}
+    <tr>
+        <td><strong>{{ acc.tool_type.name }}</strong></td>
+        <td>{{ acc.account_id or '' }}</td>
+        <td><span class="status status-{{ acc.status }}">{{ status_labels.get(acc.status, acc.status) }}</span></td>
+        <td>{% if mode == 'client' %}{{ acc.client_login_email or '' }}{% elif mode == 'agency' %}{{ acc.login_email or '' }}{% else %}{{ acc.client_login_email or acc.login_email or '' }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+<div class="footer">
+    Musterwerkstatt &middot; Max Mustermann &middot; office@musterwerkstatt.example &middot; musterwerkstatt.example<br>
+    Dokument erstellt: {{ now.strftime('%d.%m.%Y') }} &middot; Vertraulich
+</div>
+
+</body>
+</html>

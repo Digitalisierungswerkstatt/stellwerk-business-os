@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}E-Mail Templates - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="mb-6 fade-up">
+    <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">E-Mail Templates</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Vorlagen mit Platzhaltern — werden beim Versand automatisch ersetzt</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-1 sticky top-20">
+            <h2 class="text-sm font-bold text-gray-900 mb-4">
+                {% if is_new is defined and is_new %}Neues Template{% elif edit_template %}Template bearbeiten{% else %}Neues Template{% endif %}
+            </h2>
+            <form method="POST"
+                  action="{% if edit_template %}{{ url_for('email_template_edit', id=edit_template.id) }}{% else %}{{ url_for('email_template_new') }}{% endif %}"
+                  class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Name</label>
+                    <input type="text" name="name" value="{{ form_name if form_name is defined else '' }}" required
+                           placeholder="z.B. Erstansprache"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Betreff</label>
+                    <input type="text" name="betreff" value="{{ form_betreff if form_betreff is defined else '' }}" required
+                           placeholder="z.B. Zusammenarbeit mit {organisation}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Text</label>
+                    <textarea name="text" rows="8" required
+                              placeholder="Sehr geehrte/r {anrede} {nachname},&#10;&#10;..."
+                              class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200 resize-none placeholder:text-gray-300">{{ form_text if form_text is defined else '' }}</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit"
+                            class="flex-1 px-5 py-2.5 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl hover:from-petrol-600 hover:to-petrol-700 text-sm font-semibold shadow-lg shadow-petrol-500/25 transition-all duration-300">
+                        {{ 'Speichern' if edit_template else 'Erstellen' }} <span class="text-petrol-200 text-[10px] ml-1">Ctrl+S</span>
+                    </button>
+                    {% if edit_template %}
+                    <a href="{{ url_for('email_templates') }}" class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">Abbrechen</a>
+                    {% endif %}
+                </div>
+            </form>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Platzhalter</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for ph in ['{vorname}', '{nachname}', '{organisation}', '{anrede}', '{position}', '{website}', '{stadt}', '{land}'] %}
+                    <span class="px-2 py-0.5 bg-petrol-50 text-petrol-600 text-[11px] font-mono font-bold rounded-md">{{ ph }}</span>
+                    {% endfor %}
+                </div>
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-2.5 mb-1.5">Dokumente</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for ph in ['{angebotsnummer}', '{angebotsdatum}', '{angebotssumme}', '{rechnungsnummer}'] %}
+                    <span class="px-2 py-0.5 bg-violet-50 text-violet-600 text-[11px] font-mono font-bold rounded-md">{{ ph }}</span>
+                    {% endfor %}
+                </div>
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-2.5 mb-1.5">Absender</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for ph in ['{firma}', '{mein_name}'] %}
+                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[11px] font-mono font-bold rounded-md">{{ ph }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="lg:col-span-2">
+        {% if templates %}
+        <div class="mb-4">
+            <div class="relative group">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-petrol-500 transition-colors pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                <input type="text" id="template-search" placeholder="Template suchen..."
+                       oninput="document.querySelectorAll('[data-template]').forEach(el=>{el.style.display=el.textContent.toLowerCase().includes(this.value.toLowerCase())?'':'none'})"
+                       class="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all duration-200">
+            </div>
+        </div>
+        <div class="space-y-3">
+            {% for t in templates %}
+            <div data-template class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 fade-up delay-{{ loop.index }}">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-sm font-bold text-gray-900">{{ t.name }}</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Betreff: {{ t.betreff }}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0 ml-4">
+                        <a href="{{ url_for('email_template_edit', id=t.id) }}"
+                           class="px-2.5 py-1 text-[11px] font-semibold text-petrol-600 bg-petrol-50 rounded-lg hover:bg-petrol-100 transition-colors">Bearbeiten</a>
+                        <form action="{{ url_for('email_template_delete', id=t.id) }}" method="POST"
+                              onsubmit="return confirm('Template löschen?')">
+                            <button type="submit" class="px-2.5 py-1 text-[11px] font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">Löschen</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <p class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed line-clamp-4">{{ t.text }}</p>
+                </div>
+                <p class="text-[11px] text-gray-300 mt-2 tabular-nums">{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-16 text-center fade-up delay-2">
+            <div class="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+            </div>
+            <p class="text-gray-500 text-sm font-medium">Noch keine Templates erstellt</p>
+            <p class="text-gray-400 text-xs mt-1">Erstelle dein erstes Template über das Formular links</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.querySelector('form[method="POST"]').submit();
+    }
+});
+</script>
+{% endblock %}

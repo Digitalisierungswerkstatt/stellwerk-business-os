@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Export - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="mb-6 fade-up">
+    <h1 class="font-headline text-2xl font-bold text-gray-900 tracking-tight">Export</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Kontakte als Excel-Datei exportieren</p>
+</div>
+
+<div class="max-w-2xl">
+    <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+        <div class="px-6 py-5 border-b border-gray-100">
+            <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                </div>
+                Filter & Export
+            </h2>
+            <p class="text-sm text-gray-400 mt-1">Wähle optionale Filter. Ohne Filter werden alle Kontakte exportiert.</p>
+        </div>
+
+        <form method="POST" class="p-6 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                    <select name="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <option value="">Alle Status</option>
+                        {% for value, label in stages %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Land</label>
+                    <select name="land" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <option value="">Alle Länder</option>
+                        {% for country in countries %}
+                        <option value="{{ country }}">{{ country }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quelle</label>
+                    <select name="quelle" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <option value="">Alle Quellen</option>
+                        {% for value, label in quellen_options %}
+                        {% if value %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Branche</label>
+                    <select name="branche" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <option value="">Alle Branchen</option>
+                        {% for value, label in branchen_options %}
+                        {% if value %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Priorität</label>
+                    <select name="prioritaet" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-petrol-500/20 focus:border-petrol-400 transition-all">
+                        <option value="">Alle Prioritäten</option>
+                        {% for value, label in prioritaet_options %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-gray-100">
+                <button type="submit"
+                        class="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 text-sm font-semibold shadow-lg shadow-emerald-600/25 transition-all duration-300 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    Excel Export starten
+                </button>
+            </div>
+        </form>
+    </div>
+
+    
+    <div class="mt-4 bg-petrol-50/50 rounded-2xl border border-indigo-100/60 p-5 fade-up delay-2">
+        <h3 class="text-sm font-bold text-indigo-900 mb-2">Export Informationen</h3>
+        <ul class="space-y-1.5 text-sm text-petrol-600">
+            <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                Alle Kontaktfelder werden exportiert
+            </li>
+            <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                Deal-Werte inkl. gewichtetem Forecast
+            </li>
+            <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                Quelle, Branche und Priorität
+            </li>
+            <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                Format: .xlsx (kompatibel mit Excel, Numbers, LibreOffice)
+            </li>
+            <li class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                <strong>Finanz-Report</strong> als drittes Blatt: Zahlungen, Zeitkosten, Profit, eff. Stundensatz
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

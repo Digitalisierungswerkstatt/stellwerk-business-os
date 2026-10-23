@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Aufgaben - Sales CRM{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Aufgaben</h1>
+        <p class="text-gray-600">Verwalten Sie Ihre Follow-ups und To-Dos</p>
+    </div>
+    <a href="{{ url_for('task_new') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+        + Neue Aufgabe
+    </a>
+</div>
+
+
+<div class="bg-white rounded-lg shadow mb-6">
+    <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
+            <a href="{{ url_for('tasks', filter='pending') }}"
+               class="px-6 py-3 text-sm font-medium {% if filter_type == 'pending' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Alle Offenen
+            </a>
+            <a href="{{ url_for('tasks', filter='overdue') }}"
+               class="px-6 py-3 text-sm font-medium {% if filter_type == 'overdue' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Überfällig
+                {% if overdue_count > 0 %}
+                <span class="ml-2 bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ overdue_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('tasks', filter='today') }}"
+               class="px-6 py-3 text-sm font-medium {% if filter_type == 'today' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Heute
+                {% if today_count > 0 %}
+                <span class="ml-2 bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ today_count }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('tasks', filter='completed') }}"
+               class="px-6 py-3 text-sm font-medium {% if filter_type == 'completed' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Erledigt
+            </a>
+        </nav>
+    </div>
+</div>
+
+
+<div class="bg-white rounded-lg shadow">
+    {% if tasks %}
+    <ul class="divide-y divide-gray-200">
+        {% for task in tasks %}
+        <li class="p-4 flex items-start gap-4 hover:bg-gray-50">
+            <form action="{{ url_for('task_toggle', id=task.id) }}" method="POST" class="flex-shrink-0 pt-0.5">
+                <button type="submit" class="w-5 h-5 rounded border-2
+                    {% if task.completed %}bg-green-500 border-green-500{% else %}border-gray-300 hover:bg-gray-100{% endif %}">
+                    {% if task.completed %}
+                    <svg class="w-full h-full text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {% endif %}
+                </button>
+            </form>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium {% if task.completed %}text-gray-400 line-through{% else %}text-gray-900{% endif %}">
+                    {{ task.title }}
+                </p>
+                <div class="flex items-center gap-4 mt-1">
+                    <a href="{{ url_for('contact_view', id=task.contact_id) }}" class="text-sm text-blue-600 hover:underline">
+                        {{ task.contact.display_name }}
+                    </a>
+                    {% if task.due_date %}
+                    <span class="text-sm {% if not task.completed and task.due_date < today %}text-red-600 font-medium{% else %}text-gray-500{% endif %}">
+                        Fällig: {{ task.due_date.strftime('%d.%m.%Y') }}
+                        {% if not task.completed and task.due_date < today %}(Überfällig){% endif %}
+                        {% if task.due_date == today %}(Heute){% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <form action="{{ url_for('task_delete', id=task.id) }}" method="POST" class="flex-shrink-0"
+                  onsubmit="return confirm('Aufgabe löschen?');">
+                <button type="submit" class="text-gray-400 hover:text-red-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-500 mb-4">
+            {% if filter_type == 'overdue' %}Keine überfälligen Aufgaben
+            {% elif filter_type == 'today' %}Keine Aufgaben für heute
+            {% elif filter_type == 'completed' %}Keine erledigten Aufgaben
+            {% else %}Keine offenen Aufgaben{% endif %}
+        </p>
+        <a href="{{ url_for('task_new') }}" class="text-blue-600 hover:text-blue-800">Aufgabe erstellen</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

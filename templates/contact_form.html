@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Kontakt bearbeiten' if contact else 'Neuer Kontakt' }} - Stellwerk{% endblock %}
+
+{% block content %}
+<div class="mb-6 fade-up">
+    <a href="{{ url_for('contacts') }}" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 font-medium transition-colors group">
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        Kontakte
+    </a>
+</div>
+
+<div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow duration-300 fade-up delay-1">
+    <div class="px-6 py-5 border-b border-gray-100">
+        <h1 class="font-headline text-lg font-bold text-gray-900 tracking-tight">{{ 'Kontakt bearbeiten' if contact else 'Neuer Kontakt' }}</h1>
+        <p class="text-sm text-gray-400 mt-0.5">{{ 'Kontaktdaten aktualisieren' if contact else 'Neuen Kontakt anlegen' }}</p>
+    </div>
+
+    <form method="POST" class="p-6 space-y-8">
+        
+        <div class="fade-up delay-2">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-petrol-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg>
+                </div>
+                Organisation
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Organisation</label>
+                    <input type="text" name="organisation" value="{{ contact.organisation or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Organisationsform</label>
+                    <input type="text" name="organisationsform" value="{{ contact.organisationsform or '' if contact else '' }}"
+                           placeholder="z.B. GmbH, AG, e.V."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Website</label>
+                    <input type="url" name="website" value="{{ contact.website or '' if contact else '' }}"
+                           placeholder="https://..."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 invalid:border-red-300 invalid:ring-red-500/20">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">E-Mail Organisation</label>
+                    <input type="email" name="mail_organisation" value="{{ contact.mail_organisation or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 invalid:border-red-300 invalid:ring-red-500/20">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Telefon Organisation</label>
+                    <input type="tel" name="telefon_organisation" value="{{ contact.telefon_organisation or '' if contact else '' }}"
+                           placeholder="+43 ..."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Gründungsdatum</label>
+                    <input type="date" name="gruendungsdatum" value="{{ contact.gruendungsdatum.strftime('%Y-%m-%d') if contact and contact.gruendungsdatum else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Steuernummer</label>
+                    <input type="text" name="steuernummer" value="{{ contact.steuernummer or '' if contact else '' }}"
+                           placeholder="z.B. 00 000/0000"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">UID-Nummer</label>
+                    <input type="text" name="uid" value="{{ contact.uid or '' if contact else '' }}"
+                           placeholder="z.B. ATU12345678"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div class="flex items-center gap-3 py-2">
+                    <label class="relative inline-flex items-center cursor-pointer" x-data="{ on: {{ 'true' if contact and contact.gemeinnuetzig else 'false' }} }" @click.prevent="on = !on">
+                        <input type="checkbox" name="gemeinnuetzig" class="sr-only" :checked="on"
+                               {{ 'checked' if contact and contact.gemeinnuetzig else '' }}>
+                        <div class="w-11 h-6 rounded-full transition-all duration-200 relative"
+                             :class="on ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-200'">
+                            <div class="absolute top-[2px] left-[2px] w-5 h-5 bg-white border border-gray-300 rounded-full transition-transform duration-200"
+                                 :class="on ? 'translate-x-full !border-white' : ''"></div>
+                        </div>
+                    </label>
+                    <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Gemeinnützig</span>
+                </div>
+                <div class="flex items-center gap-3 py-2">
+                    <label class="relative inline-flex items-center cursor-pointer" x-data="{ on: {{ 'true' if contact and contact.has_social_mandate else 'false' }} }" @click.prevent="on = !on">
+                        <input type="checkbox" name="has_social_mandate" class="sr-only" :checked="on"
+                               {{ 'checked' if contact and contact.has_social_mandate else '' }}>
+                        <div class="w-11 h-6 rounded-full transition-all duration-200 relative"
+                             :class="on ? 'bg-petrol-500 shadow-[0_0_8px_rgba(0,112,122,0.4)]' : 'bg-gray-200'">
+                            <div class="absolute top-[2px] left-[2px] w-5 h-5 bg-white border border-gray-300 rounded-full transition-transform duration-200"
+                                 :class="on ? 'translate-x-full !border-white' : ''"></div>
+                        </div>
+                    </label>
+                    <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Social-Media-Mandat</span>
+                </div>
+                <div class="flex items-center gap-3 py-2">
+                    <label class="relative inline-flex items-center cursor-pointer" x-data="{ on: {{ 'true' if contact and contact.mandat_aktiv else 'false' }} }" @click.prevent="on = !on">
+                        <input type="checkbox" name="mandat_aktiv" class="sr-only" :checked="on"
+                               {{ 'checked' if contact and contact.mandat_aktiv else '' }}>
+                        <div class="w-11 h-6 rounded-full transition-all duration-200 relative"
+                             :class="on ? 'bg-petrol-500 shadow-[0_0_8px_rgba(0,112,122,0.4)]' : 'bg-gray-200'">
+                            <div class="absolute top-[2px] left-[2px] w-5 h-5 bg-white border border-gray-300 rounded-full transition-transform duration-200"
+                                 :class="on ? 'translate-x-full !border-white' : ''"></div>
+                        </div>
+                    </label>
+                    <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Mandat aktiv</span>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">In a Nutshell</label>
+                    <textarea name="in_a_nutshell" rows="2"
+                              class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 resize-none">{{ contact.in_a_nutshell or '' if contact else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-3">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                </div>
+                Standort & Sprache
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Land</label>
+                    <input type="text" name="land" value="{{ contact.land or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Bundesland</label>
+                    <input type="text" name="bundesland" value="{{ contact.bundesland or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">PLZ</label>
+                    <input type="text" name="plz" value="{{ contact.plz or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Stadt</label>
+                    <input type="text" name="stadt" value="{{ contact.stadt or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Straße</label>
+                    <input type="text" name="strasse" value="{{ contact.strasse or '' if contact else '' }}"
+                           placeholder="z.B. Hauptstraße 12"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Sprache 1</label>
+                    <select name="sprache_1" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in sprache_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.sprache_1 == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Sprache 2</label>
+                    <select name="sprache_2" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in sprache_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.sprache_2 == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-4">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-violet-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                </div>
+                Person
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Anrede</label>
+                    <select name="anrede" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in anrede_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.anrede == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Anrede (EN)</label>
+                    <select name="anrede_en" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in anrede_en_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.anrede_en == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Titel (vor dem Namen)</label>
+                    <input type="text" name="titel_vor" value="{{ contact.titel_vor or '' if contact else '' }}"
+                           placeholder="z.B. Dr., Prof."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Vorname</label>
+                    <input type="text" name="vorname" value="{{ contact.vorname or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nachname</label>
+                    <input type="text" name="nachname" value="{{ contact.nachname or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Titel (nach dem Namen)</label>
+                    <input type="text" name="titel_nach" value="{{ contact.titel_nach or '' if contact else '' }}"
+                           placeholder="z.B. MBA, MSc"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">E-Mail Person</label>
+                    <input type="email" name="mail_person" value="{{ contact.mail_person or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 invalid:border-red-300 invalid:ring-red-500/20">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">E-Mail Rechnung</label>
+                    <input type="email" name="mail_rechnung" value="{{ contact.mail_rechnung or '' if contact else '' }}"
+                           placeholder="z.B. buchhaltung@..."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 invalid:border-red-300 invalid:ring-red-500/20">
+                    <p class="text-[11px] text-gray-400 mt-1">Abweichender Rechnungs-Empfänger. Leer = Rechnung geht an den Hauptkontakt.</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Telefon Person</label>
+                    <input type="tel" name="telefon_person" value="{{ contact.telefon_person or '' if contact else '' }}"
+                           placeholder="+43 ..."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Position</label>
+                    <input type="text" name="position" value="{{ contact.position or '' if contact else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div class="md:col-span-2 lg:col-span-3">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">LinkedIn</label>
+                    <input type="url" name="linkedin" value="{{ contact.linkedin or '' if contact else '' }}"
+                           placeholder="https://linkedin.com/in/..."
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300 invalid:border-red-300 invalid:ring-red-500/20">
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-4">
+            <h2 class="text-sm font-bold text-gray-900 mb-1 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                Rechnungsempfänger (abweichend)
+            </h2>
+            <p class="text-[11px] text-gray-400 mb-4">Nur ausfüllen, wenn der Beleg an einen anderen Namen / eine andere Adresse gehen soll (z.B. „GmbH &amp; Co KG"). Leer = wie Stammdaten.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-Name</label>
+                    <input type="text" name="rechnung_name" value="{{ contact.rechnung_name or '' if contact else '' }}"
+                           placeholder="leer = wie Organisation"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-UID</label>
+                    <input type="text" name="rechnung_uid" value="{{ contact.rechnung_uid or '' if contact else '' }}"
+                           placeholder="leer = wie UID"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-Straße</label>
+                    <input type="text" name="rechnung_strasse" value="{{ contact.rechnung_strasse or '' if contact else '' }}"
+                           placeholder="leer = wie Straße"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-PLZ</label>
+                    <input type="text" name="rechnung_plz" value="{{ contact.rechnung_plz or '' if contact else '' }}"
+                           placeholder="leer = wie PLZ"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-Stadt</label>
+                    <input type="text" name="rechnung_stadt" value="{{ contact.rechnung_stadt or '' if contact else '' }}"
+                           placeholder="leer = wie Stadt"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rechnungs-Land</label>
+                    <input type="text" name="rechnung_land" value="{{ contact.rechnung_land or '' if contact else '' }}"
+                           placeholder="leer = wie Land"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-4">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-cyan-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+                </div>
+                Klassifizierung
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quelle</label>
+                    <input type="text" name="quelle" list="quellen_list"
+                           value="{{ contact.quelle or '' if contact else '' }}"
+                           placeholder="Auswählen oder neu eingeben"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                    <datalist id="quellen_list">
+                        {% for value, label in quellen_options %}
+                        {% if value %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                        {% for val in custom_quellen %}
+                        <option value="{{ val }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Branche</label>
+                    <input type="text" name="branche" list="branchen_list"
+                           value="{{ contact.branche or '' if contact else '' }}"
+                           placeholder="Auswählen oder neu eingeben"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                    <datalist id="branchen_list">
+                        {% for value, label in branchen_options %}
+                        {% if value %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                        {% for val in custom_branchen %}
+                        <option value="{{ val }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Priorität</label>
+                    <select name="prioritaet" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in prioritaet_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.prioritaet == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-5">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                </div>
+                Kontakt-Tracking & Deal
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kontaktiert am</label>
+                    <input type="date" name="kontaktiert" value="{{ contact.kontaktiert.strftime('%Y-%m-%d') if contact and contact.kontaktiert else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Wie kontaktiert</label>
+                    <select name="wie" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in kontakt_wie_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.wie == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                    <select name="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in stages %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.status == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Deal-Wert (EUR)</label>
+                    <input type="number" name="deal_value" step="0.01" min="0"
+                           value="{{ contact.deal_value if contact and contact.deal_value is not none else '' }}"
+                           placeholder="z.B. 10000"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Wahrscheinlichkeit (%)</label>
+                    <input type="number" name="deal_probability" min="0" max="100"
+                           value="{{ contact.deal_probability if contact and contact.deal_probability is not none else '' }}"
+                           placeholder="Auto: {{ deal_probability_defaults.get(contact.status, 5) if contact else '5' }}%"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Stundensatz (EUR)</label>
+                    <input type="number" name="hourly_rate" step="0.01" min="0"
+                           value="{{ contact.hourly_rate if contact and contact.hourly_rate is not none else '' }}"
+                           placeholder="z.B. 120"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Abrechnung terminiert bis</label>
+                    <input type="date" name="abrechnung_terminiert_bis"
+                           value="{{ contact.abrechnung_terminiert_bis.isoformat() if contact and contact.abrechnung_terminiert_bis else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                    <p class="text-[10px] text-gray-400 mt-1">Abrechnung bewusst aufgeschoben, z.B. laufendes Mandat mit Schlussrechnung danach. Bis dahin steht die Zeile im Abrechnungs-Cockpit auf „terminiert" statt rot.</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kunden-Tier</label>
+                    <select name="tier" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in tier_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.tier == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Leistungs-Phase</label>
+                    <select name="pipeline_phase" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                        {% for value, label in pipeline_phase_options %}
+                        <option value="{{ value }}" {{ 'selected' if contact and contact.pipeline_phase == value else '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2 lg:col-span-3">
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kommentare</label>
+                    <textarea name="kommentare" rows="3"
+                              class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 resize-none">{{ contact.kommentare or '' if contact else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="fade-up delay-6">
+            <h2 class="text-sm font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+                </div>
+                Erinnerung
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Erinnerung am</label>
+                    <input type="date" name="erinnerung" value="{{ contact.erinnerung.strftime('%Y-%m-%d') if contact and contact.erinnerung else '' }}"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Erinnerungstext</label>
+                    <input type="text" name="erinnerungstext" value="{{ contact.erinnerungstext or '' if contact else '' }}"
+                           placeholder="Was soll erinnert werden?"
+                           class="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200 placeholder:text-gray-300">
+                </div>
+            </div>
+        </div>
+
+        
+        <div id="duplicate-warning" class="hidden p-4 bg-amber-50 rounded-xl border border-amber-200/60 fade-up delay-7">
+            <div class="flex items-center gap-2 mb-2">
+                <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                <span class="text-sm font-bold text-amber-700">Mögliche Duplikate gefunden</span>
+            </div>
+            <div id="duplicate-list" class="space-y-1"></div>
+        </div>
+
+        
+        <div class="flex gap-3 pt-5 border-t border-gray-100 fade-up delay-7">
+            <button type="submit"
+                    class="px-6 py-2.5 bg-gradient-to-r from-petrol-500 to-petrol-600 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 text-sm font-semibold shadow-lg shadow-indigo-600/25 transition-all duration-300">
+                {{ 'Speichern' if contact else 'Kontakt erstellen' }} <span class="text-petrol-200 text-[10px] ml-1">Ctrl+S</span>
+            </button>
+            <a href="{{ url_for('contact_view', id=contact.id) if contact else url_for('contacts') }}"
+               class="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 text-sm font-semibold transition-all duration-200">Abbrechen</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let formDirty = false;
+    const form = document.querySelector('form[method="POST"]');
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('input', () => { formDirty = true; });
+        el.addEventListener('change', () => { formDirty = true; });
+    });
+    form.addEventListener('submit', () => { formDirty = false; });
+    window.addEventListener('beforeunload', (e) => {
+        if (formDirty) e.preventDefault();
+    });
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            form.requestSubmit();
+        }
+    });
+})();
+
+(function() {
+    let debounceTimer;
+    const fields = ['organisation', 'mail_person', 'mail_organisation', 'vorname', 'nachname'];
+    const form = document.querySelector('form[method="POST"]');
+    const warning = document.getElementById('duplicate-warning');
+    const list = document.getElementById('duplicate-list');
+    const excludeId = {{ contact.id if contact else 'null' }};
+
+    function checkDuplicates() {
+        const org = (form.querySelector('[name=organisation]')?.value || '').trim();
+        const email = (form.querySelector('[name=mail_person]')?.value || form.querySelector('[name=mail_organisation]')?.value || '').trim();
+        const vorname = (form.querySelector('[name=vorname]')?.value || '').trim();
+        const nachname = (form.querySelector('[name=nachname]')?.value || '').trim();
+
+        if (!org && !email && !(vorname && nachname)) { warning.classList.add('hidden'); return; }
+
+        const params = new URLSearchParams();
+        if (org) params.set('organisation', org);
+        if (email) params.set('email', email);
+        if (vorname) params.set('vorname', vorname);
+        if (nachname) params.set('nachname', nachname);
+        if (excludeId) params.set('exclude_id', excludeId);
+
+        fetch('/api/contacts/check-duplicate?' + params)
+            .then(r => r.json())
+            .then(dupes => {
+                if (dupes.length > 0) {
+                    list.innerHTML = dupes.map(d =>
+                        `<a href="${escapeHtml(d.url)}" target="_blank" class="flex items-center justify-between p-2 rounded-lg hover:bg-amber-100/50 transition-colors">
+                            <span class="text-xs font-medium text-amber-800">${escapeHtml(d.name)}</span>
+                            <span class="text-[11px] text-amber-500">${escapeHtml(d.email || d.status)}</span>
+                        </a>`
+                    ).join('');
+                    warning.classList.remove('hidden');
+                } else {
+                    warning.classList.add('hidden');
+                }
+            });
+    }
+
+    fields.forEach(name => {
+        const el = form.querySelector(`[name=${name}]`);
+        if (el) el.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(checkDuplicates, 500);
+        });
+    });
+})();
+</script>
+{% endblock %}

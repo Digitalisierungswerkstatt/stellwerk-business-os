@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Abrechnung{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">Abrechnung</h1>
+    <p class="text-sm text-gray-500 mb-6">Geleistete vs. abgedeckte Stunden pro Kunde — Stand {{ today.strftime('%d.%m.%Y') }}</p>
+
+    <div class="flex justify-end items-center gap-3 mb-6">
+        <a href="{{ url_for('abrechnung_trend') }}"
+           class="text-sm px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-petrol-300 hover:text-petrol-600 font-medium">
+            Auslastungs-Trend (12 Monate)
+        </a>
+        <a href="{{ url_for('abrechnung_profitabilitaet') }}"
+           class="text-sm px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-petrol-300 hover:text-petrol-600 font-medium">
+            Profitabilität (Eff. Stundensatz)
+        </a>
+        <form action="{{ url_for('abrechnung_run_monthly') }}" method="POST"
+              onsubmit="return confirm('Vormonats-Pauschalen als Entwürfe anlegen? Du prüfst und versendest danach selbst.');">
+            <button type="submit"
+                    class="text-sm px-4 py-2 rounded-lg bg-petrol-500 text-white hover:bg-petrol-600 font-medium">
+                Vormonats-Pauschalen anlegen
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Aktion nötig</p>
+            <p class="text-2xl font-bold text-red-600">{{ kpi.rot }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Beobachten</p>
+            <p class="text-2xl font-bold text-amber-500">{{ kpi.gelb }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-4">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Offener Wert (Leckage)</p>
+            <p class="text-2xl font-bold text-gray-900">{{ '%.0f'|format(kpi.value_open) }} €</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <tr>
+                    <th class="text-left px-4 py-3">Kunde</th>
+                    <th class="text-left px-4 py-3">Modell</th>
+                    <th class="text-right px-4 py-3">Geleistet</th>
+                    <th class="text-right px-4 py-3">Budget</th>
+                    <th class="text-right px-4 py-3">Wert</th>
+                    <th class="text-center px-4 py-3">Status</th>
+                    <th class="text-right px-4 py-3">Aktion</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% set dot = {'rot':'bg-red-500','gelb':'bg-amber-400','terminiert':'bg-sky-400','grau':'bg-gray-300','gruen':'bg-green-500'} %}
+                {% for r in rows %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium text-gray-900">{{ r.contact.display_name }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ r.mode or '—' }}</td>
+                    <td class="px-4 py-3 text-right tabular-nums">{{ '%.1f'|format(r.delivered_h or 0) }} h</td>
+                    <td class="px-4 py-3 text-right tabular-nums text-gray-400">
+                        {{ '%.1f h'|format(r.budget_h) if r.budget_h is not none else '—' }}
+                    </td>
+                    <td class="px-4 py-3 text-right tabular-nums">
+                        {{ '%.0f €'|format(r.value_eur) if r.value_eur is not none else '—' }}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full {{ dot.get(r.ampel, 'bg-gray-200') }}"
+                              title="{% if r.period_due %}fällig · {% endif %}{{ r.ampel }}{% if r.terminiert_bis %} · Abrechnung terminiert bis {{ r.terminiert_bis.strftime('%d.%m.%Y') }}{% endif %}"></span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        {% if r.action in ('retainer', 'trueup') and r.retainer_id %}
+                        <button onclick="billRetainer({{ r.retainer_id }})"
+                                class="text-xs px-3 py-1.5 rounded-lg bg-petrol-500 text-white hover:bg-petrol-600">
+                            {{ 'True-up' if r.action == 'trueup' else 'Retainer' }} abrechnen
+                        </button>
+                        {% elif r.action == 'time' %}
+                        <button onclick="invoiceFromTime({{ r.contact.id }})"
+                                class="text-xs px-3 py-1.5 rounded-lg bg-petrol-500 text-white hover:bg-petrol-600">
+                            Rechnung aus Zeit
+                        </button>
+                        {% elif r.terminiert_bis %}
+                        <span class="text-xs text-sky-600">terminiert bis {{ r.terminiert_bis.strftime('%d.%m.%Y') }}</span>
+                        {% else %}
+                        <span class="text-xs text-gray-300">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Nichts abzurechnen.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+async function invoiceFromTime(contactId) {
+    if (!confirm('Rechnung aus allen offenen Zeiteinträgen erstellen?')) return;
+    try {
+        const r = await fetch(`/api/invoice-from-time/${contactId}`, {method: 'POST'});
+        const d = await r.json();
+        if (d.success) { window.location.href = `/documents/${d.invoice_id}`; }
+        else { alert(d.error || 'Fehler'); }
+    } catch (e) { alert('Netzwerkfehler – bitte Seite neu laden.'); }
+}
+async function billRetainer(retainerId) {
+    if (!confirm('Retainer abrechnen? Erzeugt einen Rechnungs-ENTWURF über den Mehraufwand und '
+                 + 'über Monatspauschalen, die noch keine Rechnung haben. Bereits fakturierte '
+                 + 'Monate bleiben außen vor.')) return;
+    try {
+        const r = await fetch(`/api/retainers/${retainerId}/bill`, {method: 'POST'});
+        const d = await r.json();
+        if (d.success) { window.location.href = `/documents/${d.invoice_id}`; }
+        else { alert(d.error || 'Fehler'); }
+    } catch (e) { alert('Netzwerkfehler – bitte Seite neu laden.'); }
+}
+</script>
+{% endblock %}
