@@ -1301,7 +1301,7 @@ def infrastruktur_pdf(id):
         node_script = f"""
         const puppeteer = require('{os.path.join(BASE_DIR, 'node_modules', 'puppeteer').replace(os.sep, '/')}');
         (async () => {{
-            const browser = await puppeteer.launch({{headless: 'new', args: ['--no-sandbox']}});
+            const browser = await puppeteer.launch({{ headless: true, args: ['--no-sandbox'] }});
             const page = await browser.newPage();
             await page.goto('file:///{tmp_html.replace(os.sep, '/')}', {{waitUntil: 'networkidle0', timeout: 30000}});
             await page.pdf({{path: '{tmp_pdf.replace(os.sep, '/')}', format: 'A4', printBackground: true,

@@ -27,7 +27,7 @@ def _make_invoice(number, *, rate=20.0, with_address=True, due=True,
                   discount=0.0, second_rate=None, negate=False):
     _seed_company_uid()
     c = Contact(organisation='Muster GmbH', vorname='Max', nachname='Muster',
-                mail_organisation='billing@muster.at')
+                mail_organisation='billing@muster.example')
     if with_address:
         c.strasse = 'Teststrasse 1'
         c.plz = '4020'

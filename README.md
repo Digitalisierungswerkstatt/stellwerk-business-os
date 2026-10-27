@@ -6,7 +6,7 @@
 
 The operations backend of a one-person consultancy: contacts and pipeline, quotes and invoices, time tracking, a task board, retainer billing, bank reconciliation and the groundwork for cash-basis accounting. A Flask app on SQLite, run locally.
 
-What makes it different from a regular CRM is who operates it. Stellwerk is built so that an AI assistant can work with it. An MCP server gives Claude access to tasks and time entries, and every write goes through a dedicated write layer (`stellwerk_write.py`) with validation, fixed WHERE clauses and a preview before anything is saved. No tool writes on the first call: first comes the preview, and the change is only stored on an explicit second call.
+What makes it different from a regular CRM is who operates it. Stellwerk is built so that an AI assistant can work with it. An MCP server gives Claude access to tasks and time entries, and every write Claude makes goes through a dedicated write layer (`stellwerk_write.py`) with validation and fixed WHERE clauses. By default every tool only returns a preview, and the change is stored when the call is repeated with `commit=True`. That is a convention the tools follow, not a lock: a client that passes `commit=True` on the first call writes immediately. The web interface writes through its own routes, not through this layer.
 
 > **Run it locally only.** Stellwerk has no login and listens on `127.0.0.1` only. The origin and host check protects against foreign websites in the same browser, it is not a substitute for authentication. Anyone who exposes the app to a network or the internet exposes all of its data. The Flask debugger is off by default and can be switched on with `STELLWERK_DEBUG=1`. It executes arbitrary code, so use it briefly and locally only.
 
@@ -28,7 +28,7 @@ All data in the screenshots comes from the demo database and is made up.
 
 ## Features
 
-- **Contacts and pipeline:** seven-stage kanban, interaction history, follow-up rules, full-text search (SQLite FTS5)
+- **Contacts and pipeline:** kanban with seven active stages plus lost and no response, interaction history, follow-up rules, full-text search (SQLite FTS5)
 - **Quotes and invoices:** grouped line items, PDF via Puppeteer, quote to invoice, cancellation, three-step dunning, ZUGFeRD/Factur-X
 - **Time tracking:** timer, recurring entries, separation of client work and internal work, actual working time per day
 - **Billing:** retainers with hour quotas, true-up, monthly run, profitability per client
@@ -38,7 +38,7 @@ All data in the screenshots comes from the demo database and is made up.
 
 ## Quick start with demo data
 
-Requirements: Python 3.13, Node.js (only for PDF generation).
+Requirements: Python 3.13, Node.js 22.12 or newer (only for PDF generation).
 
 ```bash
 pip install -r requirements.txt
@@ -49,6 +49,8 @@ python start_demo.py        # http://localhost:5001
 
 For real use, start `python app.py` (port 5000, database `data/crm.db`). Company details, bank account and hourly rate live under Einstellungen (settings).
 
+On Windows, clone into a short path such as `C:\stellwerk`. The e-invoice package `factur-x` ships XSD files with very long names, and without long path support in Windows, `pip install` fails inside deep folders.
+
 ### With Docker
 
 ```bash
@@ -56,7 +58,7 @@ docker compose up                              # demo, http://localhost:5001
 docker compose --profile echt up -d stellwerk  # real use, http://localhost:5000
 ```
 
-The image includes Chromium for the PDFs and builds on amd64 and arm64. Real use keeps its data in `./data`, `./uploads` and `./backups` next to the compose file. Both ports are bound to `127.0.0.1` on purpose. Do not change that to a plain port mapping: Docker would then publish Stellwerk on every network interface, past the firewall, and it has no login.
+The image includes Chromium for the PDFs and builds on amd64 and arm64. Real use keeps its data in `./data`, `./uploads` and `./backups` next to the compose file. Both ports are bound to `127.0.0.1` on purpose. Do not change that to a plain port mapping: Docker would then publish Stellwerk on every network interface, past the firewall, and it has no login. The container runs as root, and Chromium runs without its own sandbox, as is common for PDF rendering in containers. Acceptable for a local tool, not for a service on a network.
 
 ## Connecting Claude Code
 
@@ -87,6 +89,8 @@ This is a selection of the tests, namely those that work without data from the r
 
 - Without the scripts mentioned above, the content calendar does not post. `content_publisher.py` calls `~/scripts/meta_publish.py` and `~/scripts/linkedin_publish.py`, `content_outbox.py` loads `~/scripts/social_outbox.py` and needs a GitHub Actions runner plus a trigger. Email drafts need `~/scripts/email_draft.py`. If a script is missing, Stellwerk names the expected path. The cloud queue is off by default (setting `content_outbox_enabled`).
 - One user, no permissions, no multi-tenancy.
+- Opening the dashboard runs a few automatic updates (follow-up reminders, document status, recurring time entries). Because these happen on a plain page load, another website could trigger them by sending your browser to `localhost`. It cannot read anything or change anything else, but it is a side effect of a GET request, and you should know about it.
+- The interface loads its fonts from Google Fonts and Alpine.js and SortableJS from jsDelivr, with integrity hashes. Without internet access, the layout falls back to system fonts and the interactive parts stop working. Tailwind is bundled.
 - Credentials stored with a contact (section „Konten & Zugänge") are kept in plain text in the database. Treat `data/crm.db` and its backups like a password vault without a lock.
 - The code is published without comments. In the original they are the working notes of the business and name clients, amounts and documents for that reason. Only the descriptions of the MCP tools remain, because Claude reads them.
 

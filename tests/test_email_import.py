@@ -17,7 +17,7 @@ def _sent_with_signature_and_quote():
         "Message-ID: <abc123@mail.host>\r\n"
         "Date: Mon, 20 Jul 2026 09:00:00 +0200\r\n"
         "From: Max Mustermann <office@musterwerkstatt.example>\r\n"
-        "To: Max Muster <max@kunde.at>\r\n"
+        "To: Max Muster <max@kunde.example>\r\n"
         "Subject: Angebot Website-Relaunch\r\n"
         "Content-Type: text/plain; charset=\"utf-8\"\r\n"
         "\r\n"
@@ -37,7 +37,7 @@ def _received_umlaut_qp():
     return message_from_string(
         "Message-ID: <recv77@mail.host>\r\n"
         "Date: Tue, 21 Jul 2026 10:30:00 +0200\r\n"
-        "From: \"Kundin Extern\" <kundin@extern.at>\r\n"
+        "From: \"Kundin Extern\" <kundin@extern.example>\r\n"
         "To: office@musterwerkstatt.example\r\n"
         f"Subject: {subj}\r\n"
         "Content-Type: text/plain; charset=\"utf-8\"\r\n"
@@ -51,7 +51,7 @@ def _html_only():
     return message_from_string(
         "Message-ID: <html1@mail.host>\r\n"
         "Date: Wed, 22 Jul 2026 08:00:00 +0200\r\n"
-        "From: web@extern.at\r\n"
+        "From: web@extern.example\r\n"
         "To: office@musterwerkstatt.example\r\n"
         "Subject: HTML\r\n"
         "Content-Type: text/html; charset=\"utf-8\"\r\n"
@@ -67,7 +67,7 @@ def test_parse_headers_and_date():
     assert p.datum == "2026-07-20"
     assert p.betreff == "Angebot Website-Relaunch"
     assert p.from_addr == "office@musterwerkstatt.example"
-    assert p.to_addrs == ["max@kunde.at"]
+    assert p.to_addrs == ["max@kunde.example"]
 
 
 def test_parse_preview_cuts_signature_and_quote():
@@ -122,7 +122,7 @@ def test_parse_from_bytes():
 def test_parse_missing_message_id_surrogate():
     msg = message_from_string(
         "Date: Mon, 20 Jul 2026 09:00:00 +0200\r\n"
-        "From: x@extern.at\r\n"
+        "From: x@extern.example\r\n"
         "To: office@musterwerkstatt.example\r\n"
         "Subject: Ohne ID\r\n\r\nBody.\r\n"
     )
@@ -135,7 +135,7 @@ def test_parse_preview_truncation():
     long = "A" * 500
     msg = message_from_string(
         "Message-ID: <long@mail.host>\r\n"
-        "From: x@extern.at\r\nTo: office@musterwerkstatt.example\r\n"
+        "From: x@extern.example\r\nTo: office@musterwerkstatt.example\r\n"
         "Subject: L\r\nContent-Type: text/plain; charset=\"utf-8\"\r\n\r\n" + long
     )
     p = ei.parse_mail(msg)
@@ -146,7 +146,7 @@ def test_parse_preview_truncation():
 def test_parse_unparseable_date_is_none():
     msg = message_from_string(
         "Message-ID: <baddate@mail.host>\r\n"
-        "Date: total kaputt\r\nFrom: x@extern.at\r\n"
+        "Date: total kaputt\r\nFrom: x@extern.example\r\n"
         "To: office@musterwerkstatt.example\r\nSubject: X\r\n\r\nBody.\r\n"
     )
     assert ei.parse_mail(msg).datum is None
@@ -155,13 +155,13 @@ def test_parse_unparseable_date_is_none():
 def test_counterparties_sent_direction_from_own_from():
     p = ei.parse_mail(_sent_with_signature_and_quote())
     cps = ei.extract_counterparties(p, EIGENE)
-    assert cps == [("Gesendet", "max@kunde.at")]
+    assert cps == [("Gesendet", "max@kunde.example")]
 
 
 def test_counterparties_received_direction():
     p = ei.parse_mail(_received_umlaut_qp())
     cps = ei.extract_counterparties(p, EIGENE)
-    assert cps == [("Empfangen", "kundin@extern.at")]
+    assert cps == [("Empfangen", "kundin@extern.example")]
 
 
 def test_counterparties_sent_multi_recipient_excludes_own():
@@ -169,14 +169,14 @@ def test_counterparties_sent_multi_recipient_excludes_own():
     msg["Message-ID"] = "<multi@mail.host>"
     msg["Date"] = "Mon, 20 Jul 2026 09:00:00 +0200"
     msg["From"] = "office@musterwerkstatt.example"
-    msg["To"] = "a@kunde.at, b@kunde.at"
-    msg["Cc"] = "office@musterwerkstatt.example, c@kunde.at"
+    msg["To"] = "a@kunde.example, b@kunde.example"
+    msg["Cc"] = "office@musterwerkstatt.example, c@kunde.example"
     msg["Subject"] = "Rundmail"
     msg.set_content("Text an mehrere.")
     p = ei.parse_mail(msg)
     cps = ei.extract_counterparties(p, EIGENE)
     gegen = [a for _, a in cps]
-    assert set(gegen) == {"a@kunde.at", "b@kunde.at", "c@kunde.at"}
+    assert set(gegen) == {"a@kunde.example", "b@kunde.example", "c@kunde.example"}
     assert all(r == "Gesendet" for r, _ in cps)
     assert "office@musterwerkstatt.example" not in gegen
 
@@ -197,10 +197,10 @@ def _contacts_db():
         "INSERT INTO contacts (id, mail_organisation, mail_person, mail_rechnung) "
         "VALUES (?, ?, ?, ?)",
         [
-            (1, "info@kunde.at", "max@kunde.at", None),
-            (2, "Office@Firma.AT", None, "buchhaltung@firma.at"),
-            (3, "shared@x.at", None, None),
-            (4, "shared@x.at", None, None),
+            (1, "info@kunde.example", "max@kunde.example", None),
+            (2, "Office@Firma.EXAMPLE", None, "buchhaltung@firma.example"),
+            (3, "shared@x.example", None, None),
+            (4, "shared@x.example", None, None),
         ],
     )
     return con
@@ -208,27 +208,27 @@ def _contacts_db():
 
 def test_match_person_column_lowercase():
     con = _contacts_db()
-    assert ei.match_contacts(con, "MAX@KUNDE.AT") == [1]
+    assert ei.match_contacts(con, "MAX@KUNDE.EXAMPLE") == [1]
 
 
 def test_match_rechnung_column():
     con = _contacts_db()
-    assert ei.match_contacts(con, "buchhaltung@firma.at") == [2]
+    assert ei.match_contacts(con, "buchhaltung@firma.example") == [2]
 
 
 def test_match_organisation_case_insensitive_stored():
     con = _contacts_db()
-    assert ei.match_contacts(con, "office@firma.at") == [2]
+    assert ei.match_contacts(con, "office@firma.example") == [2]
 
 
 def test_match_no_hit_returns_empty():
     con = _contacts_db()
-    assert ei.match_contacts(con, "niemand@nirgends.at") == []
+    assert ei.match_contacts(con, "niemand@nirgends.example") == []
 
 
 def test_match_multiple_contacts_same_address():
     con = _contacts_db()
-    assert sorted(ei.match_contacts(con, "shared@x.at")) == [3, 4]
+    assert sorted(ei.match_contacts(con, "shared@x.example")) == [3, 4]
 
 
 def test_match_empty_address():

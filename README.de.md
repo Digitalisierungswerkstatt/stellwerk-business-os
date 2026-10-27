@@ -6,7 +6,7 @@
 
 Das Operations-Backend einer Ein-Personen-Beratung: Kontakte und Pipeline, Angebote und Rechnungen, Zeiterfassung, Aufgaben-Board, Retainer-Abrechnung, Bank-Abgleich und die Vorstufe zur Einnahmen-Ausgaben-Rechnung. Eine Flask-App mit SQLite, lokal betrieben.
 
-Der Unterschied zu einem gewöhnlichen CRM liegt in der Bedienung. Das Stellwerk ist dafür gebaut, dass ein KI-Assistent damit arbeitet. Ein MCP-Server gibt Claude Zugriff auf Aufgaben und Zeiteinträge, und jeder Schreibzugriff läuft über eine eigene Schreib-Schicht (`stellwerk_write.py`) mit Validierung, festen WHERE-Klauseln und einer Vorschau vor dem Speichern. Kein Werkzeug schreibt im ersten Aufruf: Zuerst kommt die Vorschau, gespeichert wird erst mit einem ausdrücklichen zweiten Aufruf.
+Der Unterschied zu einem gewöhnlichen CRM liegt in der Bedienung. Das Stellwerk ist dafür gebaut, dass ein KI-Assistent damit arbeitet. Ein MCP-Server gibt Claude Zugriff auf Aufgaben und Zeiteinträge, und jeder Schreibzugriff von Claude läuft über eine eigene Schreib-Schicht (`stellwerk_write.py`) mit Validierung und festen WHERE-Klauseln. Ab Werk liefert jedes Werkzeug nur eine Vorschau, gespeichert wird, wenn der Aufruf mit `commit=True` wiederholt wird. Das ist eine Konvention der Werkzeuge, kein Schloss: Ein Client, der schon beim ersten Aufruf `commit=True` mitgibt, schreibt sofort. Die Weboberfläche schreibt über ihre eigenen Routen, nicht über diese Schicht.
 
 > **Nur lokal betreiben.** Das Stellwerk hat keinen Login und lauscht nur auf `127.0.0.1`. Die Prüfung von Herkunft und Host schützt vor fremden Webseiten im selben Browser, sie ersetzt keine Anmeldung. Wer die App in ein Netzwerk oder ins Internet stellt, gibt alle Daten frei. Der Flask-Debugger ist ab Werk aus und lässt sich mit `STELLWERK_DEBUG=1` einschalten. Er führt beliebigen Code aus, deshalb nur kurz und nur lokal.
 
@@ -26,7 +26,7 @@ Das Stellwerk ist für einen ganz bestimmten Betrieb gewachsen, nämlich für me
 
 ## Funktionsumfang
 
-- **Kontakte und Pipeline:** Kanban mit sieben Stufen, Interaktions-Historie, Follow-up-Regeln, Volltextsuche (SQLite FTS5)
+- **Kontakte und Pipeline:** Kanban mit sieben aktiven Stufen plus „verloren“ und „keine Antwort“, Interaktions-Historie, Follow-up-Regeln, Volltextsuche (SQLite FTS5)
 - **Angebote und Rechnungen:** Positionen in Gruppen, PDF über Puppeteer, Angebot zu Rechnung, Storno, dreistufiges Mahnwesen, ZUGFeRD/Factur-X
 - **Zeiterfassung:** Timer, wiederkehrende Einträge, Trennung von Kundenarbeit und Eigenarbeit, tatsächliche Arbeitszeit je Tag
 - **Abrechnung:** Retainer mit Stundenkontingent, True-up, Monatslauf, Profitabilität je Mandat
@@ -38,7 +38,7 @@ Die Oberfläche ist deutschsprachig. Die Rechnungslogik folgt österreichischem 
 
 ## Schnellstart mit Demo-Daten
 
-Voraussetzungen: Python 3.13, Node.js (nur für die PDF-Erzeugung).
+Voraussetzungen: Python 3.13, Node.js 22.12 oder neuer (nur für die PDF-Erzeugung).
 
 ```bash
 pip install -r requirements.txt
@@ -49,6 +49,8 @@ python start_demo.py        # http://localhost:5001
 
 Für den eigenen Betrieb `python app.py` starten (Port 5000, Datenbank `data/crm.db`). Firmendaten, Bankverbindung und Stundensatz stehen unter Einstellungen.
 
+Unter Windows in einen kurzen Pfad klonen, etwa `C:\stellwerk`. Das E-Rechnungs-Paket `factur-x` bringt XSD-Dateien mit sehr langen Namen mit, und ohne Unterstützung langer Pfade in Windows scheitert `pip install` in tief verschachtelten Ordnern.
+
 ### Mit Docker
 
 ```bash
@@ -56,7 +58,7 @@ docker compose up                              # Demo, http://localhost:5001
 docker compose --profile echt up -d stellwerk  # eigener Betrieb, http://localhost:5000
 ```
 
-Das Image bringt Chromium für die PDFs mit und läuft auf amd64 und arm64. Der eigene Betrieb legt seine Daten in `./data`, `./uploads` und `./backups` neben der Compose-Datei ab. Beide Ports sind absichtlich an `127.0.0.1` gebunden. Diese Bindung nicht durch eine einfache Portangabe ersetzen: Docker würde das Stellwerk sonst auf allen Netzwerkschnittstellen veröffentlichen, an der Firewall vorbei, und es hat keinen Login.
+Das Image bringt Chromium für die PDFs mit und läuft auf amd64 und arm64. Der eigene Betrieb legt seine Daten in `./data`, `./uploads` und `./backups` neben der Compose-Datei ab. Beide Ports sind absichtlich an `127.0.0.1` gebunden. Diese Bindung nicht durch eine einfache Portangabe ersetzen: Docker würde das Stellwerk sonst auf allen Netzwerkschnittstellen veröffentlichen, an der Firewall vorbei, und es hat keinen Login. Der Container läuft als root, und Chromium läuft ohne eigene Sandbox, wie es für PDF-Erzeugung in Containern üblich ist. Für ein lokales Werkzeug vertretbar, für einen Dienst im Netzwerk nicht.
 
 ## Mit Claude Code verbinden
 
@@ -89,6 +91,8 @@ Hier liegt eine Auswahl der Tests, nämlich die, die ohne Daten aus dem echten B
 
 - Ohne die Scripts aus dem Abschnitt oben postet der Content-Kalender nicht. `content_publisher.py` ruft `~/scripts/meta_publish.py` und `~/scripts/linkedin_publish.py` auf, `content_outbox.py` lädt `~/scripts/social_outbox.py` und braucht dazu einen GitHub-Actions-Runner samt Auslöser. Mail-Entwürfe brauchen `~/scripts/email_draft.py`. Fehlt ein Script, nennt das Stellwerk den erwarteten Pfad. Die Cloud-Warteschlange ist ab Werk aus (Einstellung `content_outbox_enabled`).
 - Ein Benutzer, keine Rechteverwaltung, keine Mandantenfähigkeit.
+- Beim Öffnen des Dashboards laufen einige Automatiken (Follow-up-Erinnerungen, Dokumentstatus, wiederkehrende Zeiteinträge). Weil das bei einem einfachen Seitenaufruf passiert, könnte eine fremde Webseite sie auslösen, indem sie den Browser auf `localhost` schickt. Lesen oder etwas anderes ändern kann sie nicht, aber es ist eine Nebenwirkung eines GET-Aufrufs, und man sollte davon wissen.
+- Die Oberfläche lädt ihre Schriften von Google Fonts und Alpine.js sowie SortableJS von jsDelivr, mit Integritätsprüfung. Ohne Internet fällt die Schrift auf Systemschriften zurück, und die interaktiven Teile funktionieren nicht. Tailwind liegt bei.
 - Zugangsdaten, die bei einem Kontakt hinterlegt werden (Bereich „Konten & Zugänge“), liegen im Klartext in der Datenbank. Die Datei `data/crm.db` und ihre Backups deshalb behandeln wie einen Passwort-Tresor ohne Schloss.
 - Der Code erscheint hier ohne Kommentare. Im Original sind sie die Arbeitsnotizen des Betriebs und nennen dafür Kund*innen, Beträge und Belege. Geblieben sind nur die Beschreibungen der MCP-Werkzeuge, weil Claude sie liest.
 
