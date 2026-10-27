@@ -20,6 +20,36 @@ Der Unterschied zu einem gewöhnlichen CRM liegt in der Bedienung. Das Stellwerk
 
 Alle Daten in den Screenshots stammen aus der Demo-Datenbank und sind erfunden.
 
+## Wie ich damit arbeite
+
+Ein typischer Kundenauftrag, mit dem Demo-Kunden Bergwerk Kulturverein anstelle eines echten:
+
+1. **Nach dem Erstgespräch** sage ich Claude, was wir vereinbart haben. Claude baut das Angebot im Stellwerk, ich lese es im Browser, und die Begleitmail landet als Entwurf in meinem Mailprogramm. Absenden tue ich.
+2. **Während ich arbeite**, bucht Claude die Zeit auf den Kunden. Das Werkzeug zeigt zuerst eine Vorschau, dann speichert es.
+3. **Am Monatsende** bereitet Claude die Rechnung aus den gebuchten Stunden vor. Ich prüfe das PDF und versende selbst.
+4. **Alles dazwischen steht im Board.** Bevor Claude an einer Aufgabe weiterarbeitet, misst es den aktuellen Stand, statt der Beschreibung zu glauben, und schreibt den Befund als Kommentar dazu.
+5. **Beiträge für meine eigenen Kanäle** entstehen als Entwurf im Content-Kalender. Raus geht nichts, bevor ich es in der Feed-Vorschau freigebe.
+
+Das Muster ist überall gleich: Claude bereitet vor und dokumentiert, ich entscheide und versende. Ein paar Zahlen aus meiner eigenen Datenbank, Stand 27. Oktober 2026:
+
+| | |
+|---|---|
+| Aufgaben seit März 2026 | 1.077 |
+| davon von Claude angelegt (seit Mai) | 371 |
+| von mir angelegt | 460, der Rest über automatische Regeln |
+| Kommentare zu Aufgaben, von Claude geschrieben | 928 von 939 |
+| Social-Beiträge über den Kalender veröffentlicht | 96 seit Juli |
+| Zeiteinträge | 1.198 |
+| Tests im privaten Repo / in diesem | 1.093 / 280 |
+
+Ich arbeite mit fünf Claude-Code-Profilen parallel am selben Board. Daher kommt die Gewohnheit: Ein Task-Status ist ein Zeitstempel, keine Tatsache.
+
+Drei Entscheidungen und ihr Preis:
+
+- **Lokal statt Cloud.** Kundendaten verlassen den Laptop nicht. Der Preis: kein Zugriff vom Handy, und die Backups sind meine Sache.
+- **SQLite statt Datenbankserver.** Eine Datei, leicht zu sichern, und Claude kann sie lesend abfragen, ohne etwas zu verändern. Der Preis: ein Benutzer, kein gleichzeitiger Zugriff von mehreren Rechnern.
+- **Selbst gebaut statt gekauft.** Es passt genau zu meinen Abläufen, und Claude kann es über MCP bedienen. Der Preis: Ich warte es selbst, und jede Änderung im Betrieb wird zu einer Änderung im Code.
+
 ## Für deinen Betrieb
 
 Das Stellwerk ist für einen ganz bestimmten Betrieb gewachsen, nämlich für meinen. Wenn du dir so ein Werkzeug für deine eigenen Abläufe wünschst, eingerichtet und mit Claude verbunden, schreib mir unverbindlich an [office@digitalisierungswerkstatt.at](mailto:office@digitalisierungswerkstatt.at?subject=Stellwerk) mit dem Betreff „Stellwerk“.

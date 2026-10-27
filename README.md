@@ -20,6 +20,36 @@ What makes it different from a regular CRM is who operates it. Stellwerk is buil
 
 All data in the screenshots comes from the demo database and is made up.
 
+## How I actually use it
+
+A typical client job, with the demo client Bergwerk Kulturverein standing in for a real one:
+
+1. **After the first call** I tell Claude what we agreed. Claude builds the quote in Stellwerk, I read it in the browser, and the cover email lands as a draft in my mail client. I press send.
+2. **While I work**, Claude books the time on the client. The tool shows a preview first, then saves.
+3. **At the end of the month** Claude prepares the invoice from the booked hours. I check the PDF and send it myself.
+4. **Everything in between lives on the board.** Before Claude continues a task, it measures the current state instead of trusting the description, and writes what it found as a comment.
+5. **Posts for my own channels** are drafted into the content calendar. Nothing goes out until I approve it in the feed preview.
+
+The pattern is the same throughout: Claude prepares and documents, I decide and send. Some numbers from my own database, as of 27 October 2026:
+
+| | |
+|---|---|
+| Tasks since March 2026 | 1,077 |
+| created by Claude (since May) | 371 |
+| created by me | 460, the rest by automatic rules |
+| Task comments written by Claude | 928 of 939 |
+| Social posts published through the calendar | 96 since July |
+| Time entries | 1,198 |
+| Tests in my private repo / in this one | 1,093 / 280 |
+
+I run five Claude Code profiles in parallel on the same board. That is where the habit comes from: a task status is a timestamp, not a fact.
+
+Three decisions and their price:
+
+- **Local, not cloud.** My client data never leaves the laptop. The price: no phone access, and backups are my job.
+- **SQLite, not a server database.** One file, easy to back up, and Claude can query it read-only. The price: one user, no concurrent access from several machines.
+- **Built, not bought.** It fits my exact process and Claude can operate it through MCP. The price: I maintain it myself, and every change in my business becomes a change in the code.
+
 ## Good to know before you try it
 
 - **The interface is German.** There is no translation layer.
